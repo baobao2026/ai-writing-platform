@@ -8,7 +8,7 @@ import time
 from typing import List, Dict, Optional
 
 # ==================== DeepSeek API 配置 ====================
-DEEPSEEK_API_KEY = st.secrets.get("DEEPSEEK_API_KEY", "你的DeepSeek-API密钥")
+DEEPSEEK_API_KEY = st.secrets.get("DEEPSEEK_API_KEY", "sk-a9b0d92a0d474ca6acd0ceb24360fef8")
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 def call_deepseek_api(messages: List[Dict], temperature: float = 0.7) -> Optional[str]:
@@ -1405,3 +1405,4 @@ function practiceSentence(pattern) {
 }
 </script>
 """, unsafe_allow_html=True)
+
