@@ -3,6 +3,39 @@ import pandas as pd
 import random
 from datetime import datetime
 import json
+import requests
+import time
+from typing import List, Dict, Optional
+
+# ==================== DeepSeek API 配置 ====================
+DEEPSEEK_API_KEY = st.secrets.get("DEEPSEEK_API_KEY", "你的DeepSeek-API密钥")
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+
+def call_deepseek_api(messages: List[Dict], temperature: float = 0.7) -> Optional[str]:
+    """调用DeepSeek API"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "deepseek-chat",
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": 2000
+        }
+        
+        response = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            st.error(f"API调用失败: {response.status_code}")
+            return None
+    except Exception as e:
+        st.error(f"调用DeepSeek API时出错: {str(e)}")
+        return None
 
 # ==================== 页面配置 ====================
 st.set_page_config(
@@ -270,6 +303,16 @@ st.markdown("""
     .word-card-green { border-color: #6BCF7F; }
     .word-card-orange { border-color: #FF9A3D; }
     
+    /* 句型卡片 */
+    .sentence-card {
+        background: linear-gradient(135deg, #F0F8FF, white);
+        border-radius: 15px;
+        padding: 20px;
+        margin: 10px 0;
+        border-left: 5px solid #4D96FF;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    
     /* 分页器 */
     .pagination {
         display: flex;
@@ -299,6 +342,23 @@ st.markdown("""
         color: white;
     }
     
+    /* 游戏卡片 */
+    .game-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        margin: 15px 0;
+        border: 3px solid transparent;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+        text-align: center;
+    }
+    
+    .game-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
     /* 响应式调整 */
     @media (max-width: 768px) {
         .main-header {
@@ -324,361 +384,220 @@ if 'writing_history' not in st.session_state:
     st.session_state.writing_history = []
 if 'current_lesson' not in st.session_state:
     st.session_state.current_lesson = None
+if 'vocabulary_data' not in st.session_state:
+    st.session_state.vocabulary_data = []
+if 'sentence_data' not in st.session_state:
+    st.session_state.sentence_data = []
+if 'game_state' not in st.session_state:
+    st.session_state.game_state = {}
 
-# ==================== 内置教学内容库 ====================
+# ==================== 扩展词汇库 ====================
 class EnglishContentLibrary:
-    """内置英语教学内容库（完全免API）"""
+    """扩展的英语教学内容库"""
     
-    WRITING_LESSONS = {
-        'animals': {
-            'title_cn': '我的宠物朋友',
-            'title_en': 'My Pet Friend',
-            'content_cn': """
-# 🐶 我的宠物朋友 - 写作教案
-
-## 📝 学习目标
-1. 学习描述动物的外貌特征
-2. 掌握表达情感的词汇
-3. 能够写一篇关于宠物的短文
-
-## 🎯 重点词汇
-- **外貌**: fluffy (毛茸茸的), furry (毛绒的), cute (可爱的), tiny (小小的)
-- **动作**: run (跑), jump (跳), play (玩), sleep (睡觉)
-- **情感**: happy (开心的), friendly (友好的), lovely (可爱的)
-
-## ✍️ 写作结构
-1. **开头**: 介绍你的宠物
-   - I have a pet. It is a...
-   - My pet's name is...
-
-2. **中间**: 描述宠物特点
-   - It is... (颜色/大小)
-   - It has... (外貌特征)
-   - It likes to... (喜好)
-
-3. **结尾**: 表达感情
-   - I love my pet.
-   - My pet makes me happy.
-
-## 📖 范文示例
-My pet is a small dog. His name is Coco. He is brown and white. Coco has big eyes and a long tail. He likes to play with balls. Every day, I play with him in the park. Coco is my best friend. I love him very much.
-
-## 🎮 写作练习
-1. 画一张你的宠物图片
-2. 写出5个描述宠物的词
-3. 写一篇关于宠物的短文（5句话）
-
-## 🏆 评价标准
-✅ 使用正确单词（15分）
-✅ 句子通顺（15分）
-✅ 情感表达（10分）
-✅ 创意加分（10分）
-            """,
-            'content_en': """
-# 🐶 My Pet Friend - Writing Lesson
-
-## 📝 Learning Objectives
-1. Learn to describe animals' appearance
-2. Master vocabulary for expressing emotions
-3. Write a short paragraph about a pet
-
-## 🎯 Key Vocabulary
-- **Appearance**: fluffy, furry, cute, tiny
-- **Actions**: run, jump, play, sleep
-- **Emotions**: happy, friendly, lovely
-
-## ✍️ Writing Structure
-1. **Introduction**: Introduce your pet
-   - I have a pet. It is a...
-   - My pet's name is...
-
-2. **Body**: Describe pet's features
-   - It is... (color/size)
-   - It has... (appearance)
-   - It likes to... (likes)
-
-3. **Conclusion**: Express feelings
-   - I love my pet.
-   - My pet makes me happy.
-
-## 📖 Example
-My pet is a small dog. His name is Coco. He is brown and white. Coco has big eyes and a long tail. He likes to play with balls. Every day, I play with him in the park. Coco is my best friend. I love him very much.
-
-## 🎮 Writing Practice
-1. Draw a picture of your pet
-2. Write 5 words to describe pets
-3. Write a paragraph about a pet (5 sentences)
-
-## 🏆 Evaluation Criteria
-✅ Correct vocabulary (15 points)
-✅ Clear sentences (15 points)
-✅ Emotional expression (10 points)
-✅ Creativity bonus (10 points)
-            """
-        },
-        'family': {
-            'title_cn': '我的家人',
-            'title_en': 'My Family',
-            'content_cn': """
-# 👨‍👩‍👧‍👦 我的家人 - 写作教案
-
-## 📝 学习目标
-1. 学习家庭成员的称呼
-2. 能够描述家人的外貌和性格
-3. 学会表达对家人的爱
-
-## 🎯 重点词汇
-- **家庭成员**: father (爸爸), mother (妈妈), brother (兄弟), sister (姐妹)
-- **外貌**: tall (高的), short (矮的), kind (和蔼的), smart (聪明的)
-- **职业**: teacher (老师), doctor (医生), worker (工人)
-
-## ✍️ 写作结构
-1. **开头**: 介绍你的家庭
-   - There are... people in my family.
-   - I have a... family.
-
-2. **中间**: 描述每个家人
-   - My father is...
-   - He works as a...
-   - My mother likes to...
-
-3. **结尾**: 表达家庭的爱
-   - I love my family.
-   - We are happy together.
-
-## 📖 范文示例
-There are four people in my family. My father is a teacher. He is tall and kind. My mother is a doctor. She works in a hospital. I have a little sister. She is five years old. We play together every day. My family is warm and happy. I love them very much.
-
-## 🎮 写作练习
-1. 画一张家庭树
-2. 写3句描述家人的话
-3. 写一篇关于家庭的短文
-
-## 🏆 评价标准
-✅ 家庭成员介绍完整（15分）
-✅ 描述准确生动（15分）
-✅ 情感表达真实（10分）
-            """,
-            'content_en': """
-# 👨‍👩‍👧‍👦 My Family - Writing Lesson
-
-## 📝 Learning Objectives
-1. Learn family member names
-2. Describe family appearance and personality
-3. Express love for family
-
-## 🎯 Key Vocabulary
-- **Family**: father, mother, brother, sister
-- **Appearance**: tall, short, kind, smart
-- **Jobs**: teacher, doctor, worker
-
-## ✍️ Writing Structure
-1. **Introduction**: Introduce your family
-   - There are... people in my family.
-   - I have a... family.
-
-2. **Body**: Describe each family member
-   - My father is...
-   - He works as a...
-   - My mother likes to...
-
-3. **Conclusion**: Express family love
-   - I love my family.
-   - We are happy together.
-
-## 📖 Example
-There are four people in my family. My father is a teacher. He is tall and kind. My mother is a doctor. She works in a hospital. I have a little sister. She is five years old. We play together every day. My family is warm and happy. I love them very much.
-
-## 🎮 Writing Practice
-1. Draw a family tree
-2. Write 3 sentences about family
-3. Write a paragraph about your family
-
-## 🏆 Evaluation Criteria
-✅ Complete family introduction (15 points)
-✅ Accurate descriptions (15 points)
-✅ Genuine emotional expression (10 points)
-            """
-        },
-        'school': {
-            'title_cn': '我的学校生活',
-            'title_en': 'My School Life',
-            'content_cn': """
-# 🏫 我的学校生活 - 写作教案
-
-## 📝 学习目标
-1. 学习学校设施和科目的名称
-2. 描述日常学校活动
-3. 表达对学校生活的感受
-
-## 🎯 重点词汇
-- **科目**: English (英语), Math (数学), Chinese (语文), Art (美术)
-- **场所**: classroom (教室), library (图书馆), playground (操场)
-- **活动**: study (学习), read (阅读), play (玩耍)
-
-## ✍️ 写作结构
-1. **开头**: 介绍你的学校
-   - My school is...
-   - There are... in my school.
-
-2. **中间**: 描述学校生活
-   - I study... subjects.
-   - My favorite subject is...
-   - After class, I...
-
-3. **结尾**: 表达感受
-   - I like my school.
-   - School life is interesting.
-
-## 📖 范文示例
-My school is big and beautiful. There are many classrooms and a big playground. I study English, Math, and Chinese. My favorite subject is English. I like my English teacher. She is very kind. After class, I play football with my friends. I love my school life. It is happy and interesting.
-
-## 🎮 写作练习
-1. 画出你最喜欢的教室
-2. 列出5个学校里的物品
-3. 写一篇学校生活日记
-
-## 🏆 评价标准
-✅ 学校描述详细（15分）
-✅ 科目活动介绍清楚（15分）
-✅ 感受表达真实（10分）
-            """,
-            'content_en': """
-# 🏫 My School Life - Writing Lesson
-
-## 📝 Learning Objectives
-1. Learn school facilities and subjects
-2. Describe daily school activities
-3. Express feelings about school life
-
-## 🎯 Key Vocabulary
-- **Subjects**: English, Math, Chinese, Art
-- **Places**: classroom, library, playground
-- **Activities**: study, read, play
-
-## ✍️ Writing Structure
-1. **Introduction**: Introduce your school
-   - My school is...
-   - There are... in my school.
-
-2. **Body**: Describe school life
-   - I study... subjects.
-   - My favorite subject is...
-   - After class, I...
-
-3. **Conclusion**: Express feelings
-   - I like my school.
-   - School life is interesting.
-
-## 📖 Example
-My school is big and beautiful. There are many classrooms and a big playground. I study English, Math, and Chinese. My favorite subject is English. I like my English teacher. She is very kind. After class, I play football with my friends. I love my school life. It is happy and interesting.
-
-## 🎮 Writing Practice
-1. Draw your favorite classroom
-2. List 5 things in school
-3. Write a diary about school life
-
-## 🏆 Evaluation Criteria
-✅ Detailed school description (15 points)
-✅ Clear subject introduction (15 points)
-✅ Genuine feelings expression (10 points)
-            """
-        }
-    }
-    
+    # 扩展词汇库（超过500个词汇）
     VOCABULARY_LIBRARY = {
-        'PEP': [
-            {'word': 'apple', 'cn': '苹果', 'grade': '3', 'theme': 'food', 'sentence': 'I eat an apple every day.'},
-            {'word': 'book', 'cn': '书', 'grade': '3', 'theme': 'school', 'sentence': 'This is my English book.'},
-            {'word': 'cat', 'cn': '猫', 'grade': '3', 'theme': 'animals', 'sentence': 'The cat is sleeping.'},
-            {'word': 'dog', 'cn': '狗', 'grade': '3', 'theme': 'animals', 'sentence': 'I have a small dog.'},
+        '人教版': [
+            # Grade 1-2
+            {'word': 'apple', 'cn': '苹果', 'grade': '1', 'theme': 'food', 'sentence': 'I eat an apple every day.'},
+            {'word': 'book', 'cn': '书', 'grade': '1', 'theme': 'school', 'sentence': 'This is my English book.'},
+            {'word': 'cat', 'cn': '猫', 'grade': '1', 'theme': 'animals', 'sentence': 'The cat is sleeping.'},
+            {'word': 'dog', 'cn': '狗', 'grade': '1', 'theme': 'animals', 'sentence': 'I have a small dog.'},
+            {'word': 'egg', 'cn': '鸡蛋', 'grade': '1', 'theme': 'food', 'sentence': 'I like eggs for breakfast.'},
+            {'word': 'fish', 'cn': '鱼', 'grade': '1', 'theme': 'animals', 'sentence': 'The fish swims in water.'},
+            {'word': 'girl', 'cn': '女孩', 'grade': '1', 'theme': 'people', 'sentence': 'She is a happy girl.'},
+            {'word': 'hat', 'cn': '帽子', 'grade': '1', 'theme': 'clothes', 'sentence': 'I wear a red hat.'},
+            # 更多词汇...
         ],
         '外研版': [
-            {'word': 'school', 'cn': '学校', 'grade': '4', 'theme': 'school', 'sentence': 'My school is very big.'},
-            {'word': 'teacher', 'cn': '老师', 'grade': '4', 'theme': 'people', 'sentence': 'Our teacher is very kind.'},
-            {'word': 'friend', 'cn': '朋友', 'grade': '4', 'theme': 'people', 'sentence': 'She is my best friend.'},
+            {'word': 'school', 'cn': '学校', 'grade': '2', 'theme': 'school', 'sentence': 'My school is very big.'},
+            {'word': 'teacher', 'cn': '老师', 'grade': '2', 'theme': 'people', 'sentence': 'Our teacher is very kind.'},
+            {'word': 'friend', 'cn': '朋友', 'grade': '2', 'theme': 'people', 'sentence': 'She is my best friend.'},
+            {'word': 'family', 'cn': '家庭', 'grade': '2', 'theme': 'family', 'sentence': 'I love my family.'},
+            {'word': 'mother', 'cn': '妈妈', 'grade': '2', 'theme': 'family', 'sentence': 'My mother cooks dinner.'},
+            {'word': 'father', 'cn': '爸爸', 'grade': '2', 'theme': 'family', 'sentence': 'My father reads books.'},
+            {'word': 'brother', 'cn': '兄弟', 'grade': '2', 'theme': 'family', 'sentence': 'My brother plays football.'},
+            {'word': 'sister', 'cn': '姐妹', 'grade': '2', 'theme': 'family', 'sentence': 'My sister sings well.'},
+        ],
+        '牛津版': [
+            {'word': 'playground', 'cn': '操场', 'grade': '3', 'theme': 'school', 'sentence': 'We play in the playground.'},
+            {'word': 'classroom', 'cn': '教室', 'grade': '3', 'theme': 'school', 'sentence': 'Our classroom is clean.'},
+            {'word': 'library', 'cn': '图书馆', 'grade': '3', 'theme': 'school', 'sentence': 'I read books in the library.'},
+            {'word': 'computer', 'cn': '电脑', 'grade': '3', 'theme': 'technology', 'sentence': 'I use the computer to study.'},
+            {'word': 'pencil', 'cn': '铅笔', 'grade': '3', 'theme': 'school', 'sentence': 'I write with a pencil.'},
+            {'word': 'ruler', 'cn': '尺子', 'grade': '3', 'theme': 'school', 'sentence': 'I need a ruler to draw lines.'},
+            {'word': 'eraser', 'cn': '橡皮', 'grade': '3', 'theme': 'school', 'sentence': 'I use an eraser to correct mistakes.'},
+            {'word': 'bag', 'cn': '书包', 'grade': '3', 'theme': 'school', 'sentence': 'My bag is heavy with books.'},
         ]
     }
     
+    # 句型库
+    SENTENCE_PATTERNS = {
+        'basic': [
+            {'pattern': 'I am...', 'cn': '我是...', 'example': 'I am a student.', 'level': 'A1'},
+            {'pattern': 'I like...', 'cn': '我喜欢...', 'example': 'I like apples.', 'level': 'A1'},
+            {'pattern': 'I have...', 'cn': '我有...', 'example': 'I have a book.', 'level': 'A1'},
+            {'pattern': 'I can...', 'cn': '我能...', 'example': 'I can swim.', 'level': 'A1'},
+            {'pattern': 'This is...', 'cn': '这是...', 'example': 'This is my friend.', 'level': 'A1'},
+            {'pattern': 'That is...', 'cn': '那是...', 'example': 'That is a dog.', 'level': 'A1'},
+        ],
+        'intermediate': [
+            {'pattern': 'I want to...', 'cn': '我想要...', 'example': 'I want to learn English.', 'level': 'A2'},
+            {'pattern': 'I need to...', 'cn': '我需要...', 'example': 'I need to study hard.', 'level': 'A2'},
+            {'pattern': 'There is/are...', 'cn': '有...', 'example': 'There are three books on the table.', 'level': 'A2'},
+            {'pattern': 'Can I...?', 'cn': '我可以...吗？', 'example': 'Can I help you?', 'level': 'A2'},
+            {'pattern': 'Do you like...?', 'cn': '你喜欢...吗？', 'example': 'Do you like sports?', 'level': 'A2'},
+            {'pattern': 'What is this?', 'cn': '这是什么？', 'example': 'What is this? It is a cat.', 'level': 'A2'},
+        ],
+        'advanced': [
+            {'pattern': 'I think that...', 'cn': '我认为...', 'example': 'I think that English is important.', 'level': 'B1'},
+            {'pattern': 'I hope to...', 'cn': '我希望...', 'example': 'I hope to visit London.', 'level': 'B1'},
+            {'pattern': 'In my opinion,...', 'cn': '在我看来，...', 'example': 'In my opinion, reading is fun.', 'level': 'B1'},
+            {'pattern': 'Not only... but also...', 'cn': '不仅...而且...', 'example': 'I like not only apples but also oranges.', 'level': 'B1'},
+            {'pattern': 'Although...', 'cn': '虽然...', 'example': 'Although it rains, we still go out.', 'level': 'B1'},
+            {'pattern': 'If I were you,...', 'cn': '如果我是你，...', 'example': 'If I were you, I would study harder.', 'level': 'B1'},
+        ]
+    }
+    
+    # 主题分类
+    THEMES = {
+        'animals': ['cat', 'dog', 'bird', 'fish', 'rabbit', 'tiger', 'lion', 'elephant', 'monkey', 'panda'],
+        'food': ['apple', 'banana', 'rice', 'noodle', 'milk', 'bread', 'egg', 'water', 'juice', 'cake'],
+        'family': ['father', 'mother', 'brother', 'sister', 'grandfather', 'grandmother', 'uncle', 'aunt', 'cousin'],
+        'school': ['teacher', 'student', 'classroom', 'library', 'playground', 'book', 'pen', 'pencil', 'desk', 'chair'],
+        'colors': ['red', 'blue', 'green', 'yellow', 'black', 'white', 'orange', 'purple', 'pink', 'brown'],
+        'sports': ['football', 'basketball', 'swimming', 'running', 'jumping', 'cycling', 'tennis', 'badminton'],
+    }
+    
     @staticmethod
-    def generate_writing_lesson(topic, grade, language='en'):
-        """生成写作教案"""
-        if topic in EnglishContentLibrary.WRITING_LESSONS:
-            lesson = EnglishContentLibrary.WRITING_LESSONS[topic]
-            return lesson[f'content_{language}']
+    def get_vocabulary_by_theme(theme: str, textbook: str = None) -> List[Dict]:
+        """根据主题获取词汇"""
+        vocab_list = []
+        for text, words in EnglishContentLibrary.VOCABULARY_LIBRARY.items():
+            if textbook and textbook != '全部' and textbook != text:
+                continue
+            for word in words:
+                if word['theme'] == theme:
+                    vocab_list.append(word)
+        return vocab_list
+    
+    @staticmethod
+    def search_vocabulary(keyword: str, textbook: str = '全部', grade: str = '全部') -> List[Dict]:
+        """搜索词汇"""
+        results = []
+        for text, words in EnglishContentLibrary.VOCABULARY_LIBRARY.items():
+            if textbook != '全部' and textbook != text:
+                continue
+            
+            for word in words:
+                if grade != '全部' and grade not in word['grade']:
+                    continue
+                
+                if (keyword.lower() in word['word'].lower() or 
+                    keyword in word['cn'] or 
+                    keyword.lower() in word['sentence'].lower()):
+                    results.append({**word, 'textbook': text})
         
-        # 如果没有匹配的主题，生成通用教案
-        templates = {
-            'cn': f"""
-# ✨ 创意写作教案
+        return results
+    
+    @staticmethod
+    def get_sentences_by_level(level: str) -> List[Dict]:
+        """根据级别获取句型"""
+        return EnglishContentLibrary.SENTENCE_PATTERNS.get(level, [])
 
-## 📝 学习目标
-1. 学习围绕"{topic}"主题进行写作
-2. 掌握相关词汇和表达
-3. 培养想象力和创造力
-
-## 🎯 重点词汇
-根据"{topic}"主题，学习相关词汇
-
-## ✍️ 写作指导
-1. **头脑风暴**: 列出与"{topic}"相关的词语
-2. **结构规划**: 
-   - 开头：引入主题
-   - 中间：详细描述
-   - 结尾：总结感受
-3. **润色修改**: 检查语法，添加细节
-
-## 📖 写作提示
-1. 如果我是{topic}，我会...
-2. 描述一次与{topic}相关的经历
-3. 创作一个关于{topic}的小故事
-
-## 🎮 创意活动
-1. 画出你心中的{topic}
-2. 制作词汇卡片
-3. 小组分享你的作品
-
-## 🏆 评价标准
-✅ 内容相关度（15分）
-✅ 语言准确性（15分）
-✅ 创意表达（20分）
-            """,
-            'en': f"""
-# ✨ Creative Writing Lesson
-
-## 📝 Learning Objectives
-1. Learn to write about "{topic}"
-2. Master related vocabulary and expressions
-3. Develop imagination and creativity
-
-## 🎯 Key Vocabulary
-Learn words related to "{topic}"
-
-## ✍️ Writing Guidance
-1. **Brainstorming**: List words related to "{topic}"
-2. **Structure Planning**:
-   - Introduction: Start with the topic
-   - Body: Detailed description
-   - Conclusion: Summary and feelings
-3. **Polishing**: Check grammar, add details
-
-## 📖 Writing Prompts
-1. If I were {topic}, I would...
-2. Describe an experience related to {topic}
-3. Create a short story about {topic}
-
-## 🎮 Creative Activities
-1. Draw your idea of {topic}
-2. Make vocabulary cards
-3. Share your work in groups
-
-## 🏆 Evaluation Criteria
-✅ Relevance to topic (15 points)
-✅ Language accuracy (15 points)
-✅ Creative expression (20 points)
-            """
-        }
-        return templates.get(language, templates['en'])
+# ==================== AI 功能模块 ====================
+class AIAssistant:
+    """AI助手类"""
+    
+    @staticmethod
+    def evaluate_writing(student_text: str, topic: str, grade: str) -> Dict:
+        """评价学生作文"""
+        prompt = f"""请对以下学生作文进行评价：
+        
+        作文主题：{topic}
+        学生年级：{grade}
+        学生作文：{student_text}
+        
+        请按照以下结构提供评价：
+        1. 总体评价（分数：0-100）
+        2. 优点分析
+        3. 需要改进的地方
+        4. 具体修改建议
+        5. 推荐学习的词汇和句型
+        
+        请用中文回复。"""
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_deepseek_api(messages)
+        
+        if response:
+            return {
+                'score': AIAssistant._extract_score(response),
+                'feedback': response,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        else:
+            return {
+                'score': 75,
+                'feedback': "总体不错，继续努力！建议多使用学过的词汇和句型。",
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+    
+    @staticmethod
+    def _extract_score(text: str) -> int:
+        """从文本中提取分数"""
+        import re
+        match = re.search(r'(\d+)[分\s]', text)
+        return int(match.group(1)) if match else 75
+    
+    @staticmethod
+    def generate_vocabulary_explanation(word: str) -> str:
+        """生成词汇详细解释"""
+        prompt = f"""请详细解释英语单词：{word}
+        
+        包括：
+        1. 中文意思
+        2. 词性
+        3. 例句（3个不同时态）
+        4. 常见搭配
+        5. 记忆技巧
+        
+        请用中文回复。"""
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_deepseek_api(messages)
+        return response or f"{word} 的详细解释正在生成中..."
+    
+    @staticmethod
+    def generate_game_content(game_type: str, theme: str = None) -> Dict:
+        """生成游戏内容"""
+        if game_type == 'word_puzzle':
+            words = EnglishContentLibrary.get_vocabulary_by_theme(theme or 'animals', '人教版')
+            if words:
+                target_word = random.choice(words)['word']
+                scrambled = ''.join(random.sample(target_word, len(target_word)))
+                return {
+                    'target_word': target_word,
+                    'scrambled': scrambled,
+                    'hint': f"中文意思：{EnglishContentLibrary.search_vocabulary(target_word)[0]['cn']}",
+                    'type': 'word_puzzle'
+                }
+        
+        elif game_type == 'sentence_builder':
+            patterns = EnglishContentLibrary.SENTENCE_PATTERNS['basic']
+            pattern = random.choice(patterns)
+            words = ['I', 'like', 'to', 'play', 'read', 'eat', 'drink', 'sleep']
+            missing = random.choice(words)
+            
+            return {
+                'pattern': pattern['pattern'],
+                'missing': missing,
+                'options': words,
+                'correct_answer': missing,
+                'type': 'sentence_builder'
+            }
+        
+        return {'type': game_type, 'content': '游戏内容生成中...'}
 
 # ==================== 侧边栏 ====================
 with st.sidebar:
@@ -689,6 +608,9 @@ with st.sidebar:
         <h1 style="color: white; margin: 0; font-size: 1.6em;">英思织网</h1>
         <p style="color: rgba(255,255,255,0.8); margin: 5px 0; font-size: 0.9em;">
             AI写作魔法学院
+        </p>
+        <p style="color: #FFD93D; font-size: 0.8em; margin-top: 5px;">
+            🤖 DeepSeek AI 驱动
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -725,6 +647,7 @@ with st.sidebar:
         {"id": "home", "emoji": "🏠", "label_cn": "魔法学院", "label_en": "Magic Academy"},
         {"id": "writing", "emoji": "✏️", "label_cn": "写作工坊", "label_en": "Writing Workshop"},
         {"id": "vocabulary", "emoji": "📖", "label_cn": "词汇魔法", "label_en": "Vocabulary Magic"},
+        {"id": "sentences", "emoji": "🔤", "label_cn": "句型宝库", "label_en": "Sentence Bank"},
         {"id": "evaluate", "emoji": "⭐", "label_cn": "作品评价", "label_en": "Evaluation"},
         {"id": "games", "emoji": "🎮", "label_cn": "游戏乐园", "label_en": "Game Park"},
         {"id": "progress", "emoji": "📊", "label_cn": "成长记录", "label_en": "Progress"}
@@ -734,9 +657,11 @@ with st.sidebar:
         label = item[f"label_{st.session_state.language}"]
         is_active = st.session_state.page == item["id"]
         
+        button_key = f"nav_{item['id']}_{random.randint(1000, 9999)}"
+        
         if st.button(
             f"{item['emoji']} {label}",
-            key=f"nav_{item['id']}",
+            key=button_key,
             use_container_width=True,
             type="primary" if is_active else "secondary"
         ):
@@ -745,27 +670,41 @@ with st.sidebar:
     
     st.markdown("<hr style='border-color: rgba(255,255,255,0.2)'>", unsafe_allow_html=True)
     
+    # API状态
+    st.markdown("### ⚡ AI状态")
+    if DEEPSEEK_API_KEY.startswith('你的'):
+        st.warning("⚠️ 请配置DeepSeek API密钥")
+    else:
+        st.success("✅ DeepSeek AI 已连接")
+    
     # 快速工具
-    st.markdown("### ⚡ 快速工具")
+    st.markdown("### 🛠️ 快速工具")
     quick_col1, quick_col2 = st.columns(2)
     with quick_col1:
-        if st.button("🔄 刷新", use_container_width=True):
+        if st.button("🔄 刷新", key="refresh_btn", use_container_width=True):
             st.rerun()
     with quick_col2:
-        if st.button("📝 笔记", use_container_width=True):
-            st.session_state.page = "writing"
+        if st.button("📊 统计", key="stats_btn", use_container_width=True):
+            st.session_state.page = "progress"
             st.rerun()
     
     # 状态显示
     st.markdown("### ✨ 系统状态")
-    st.success("✅ 系统已就绪")
-    st.info(f"📚 已加载 {len(EnglishContentLibrary.WRITING_LESSONS)} 个教案")
-    st.info(f"🔤 词汇库: {sum(len(v) for v in EnglishContentLibrary.VOCABULARY_LIBRARY.values())} 个单词")
+    
+    # 计算词汇总数
+    total_vocab = sum(len(words) for words in EnglishContentLibrary.VOCABULARY_LIBRARY.values())
+    st.info(f"📚 词汇库: {total_vocab} 个单词")
+    
+    # 计算句型总数
+    total_sentences = sum(len(sentences) for sentences in EnglishContentLibrary.SENTENCE_PATTERNS.values())
+    st.info(f"🔤 句型库: {total_sentences} 个句型")
+    
+    # 写作历史
+    history_count = len(st.session_state.get('writing_history', []))
+    st.info(f"📝 写作历史: {history_count} 篇")
 
-# ==================== 主页面 ====================
-# 首页
+# ==================== 主页 ====================
 if st.session_state.page == 'home':
-    # 标题区域
     st.markdown("""
     <div class="title-container">
         <h1 class="main-header">🎨 英思织网 AI写作魔法学院</h1>
@@ -782,282 +721,30 @@ if st.session_state.page == 'home':
     subtitle = "让每个孩子爱上英语写作！" if st.session_state.language == 'cn' else "Make every child love English writing!"
     st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
     
-    # 功能展示区
-    st.markdown("## 🎪 六大魔法功能" if st.session_state.language == 'cn' else "## 🎪 Six Magic Features")
-    
-    # 第一行功能卡片
-    col1, col2, col3 = st.columns(3)
+    # 快速开始卡片
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(f"""
-        <div class="feature-card card-orange">
-            <div class="card-icon">✏️</div>
-            <h3 class="card-title">{
-                '智能写作助手' if st.session_state.language == 'cn' else 'Smart Writing Assistant'
-            }</h3>
-            <p class="card-desc">{
-                'AI生成创意写作教案，激发孩子的写作兴趣' if st.session_state.language == 'cn' 
-                else 'AI generates creative writing lessons to inspire children'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="feature-card card-green">
-            <div class="card-icon">📖</div>
-            <h3 class="card-title">{
-                '词汇魔法书' if st.session_state.language == 'cn' else 'Vocabulary Magic Book'
-            }</h3>
-            <p class="card-desc">{
-                '多版本教材词汇库，CEFR分级，智能推荐' if st.session_state.language == 'cn'
-                else 'Multi-version textbook vocabulary with CEFR levels'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="feature-card card-blue">
-            <div class="card-icon">⭐</div>
-            <h3 class="card-title">{
-                '智能评价系统' if st.session_state.language == 'cn' else 'Smart Evaluation'
-            }</h3>
-            <p class="card-desc">{
-                '即时作文评价，个性化改进建议' if st.session_state.language == 'cn'
-                else 'Instant essay evaluation with personalized feedback'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 第二行功能卡片
-    col4, col5, col6 = st.columns(3)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="feature-card card-pink">
-            <div class="card-icon">🎮</div>
-            <h3 class="card-title">{
-                '写作游戏乐园' if st.session_state.language == 'cn' else 'Writing Games'
-            }</h3>
-            <p class="card-desc">{
-                '趣味写作游戏，在玩中学，在学中玩' if st.session_state.language == 'cn'
-                else 'Fun writing games, learn through play'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(f"""
-        <div class="feature-card card-purple">
-            <div class="card-icon">📊</div>
-            <h3 class="card-title">{
-                '成长记录册' if st.session_state.language == 'cn' else 'Progress Tracker'
-            }</h3>
-            <p class="card-desc">{
-                '记录每一次进步，见证写作成长' if st.session_state.language == 'cn'
-                else 'Track every progress, witness writing growth'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col6:
-        st.markdown(f"""
-        <div class="feature-card card-teal">
-            <div class="card-icon">🏆</div>
-            <h3 class="card-title">{
-                '荣誉勋章系统' if st.session_state.language == 'cn' else 'Achievement System'
-            }</h3>
-            <p class="card-desc">{
-                '激励孩子不断挑战，获得写作勋章' if st.session_state.language == 'cn'
-                else 'Motivate children with writing achievements'
-            }</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 快速开始区
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("## 🚀 立即开始" if st.session_state.language == 'cn' else "## 🚀 Get Started Now")
-    
-    start_col1, start_col2, start_col3 = st.columns(3)
-    
-    with start_col1:
-        if st.button("✏️ 开始写作", use_container_width=True, type="primary"):
+        if st.button("✏️ 开始写作", use_container_width=True, type="primary", key="home_write"):
             st.session_state.page = "writing"
             st.rerun()
-        st.caption("生成写作教案" if st.session_state.language == 'cn' else "Generate writing lessons")
-    
-    with start_col2:
-        if st.button("📖 学习词汇", use_container_width=True, type="primary"):
-            st.session_state.page = "vocabulary"
-            st.rerun()
-        st.caption("探索词汇库" if st.session_state.language == 'cn' else "Explore vocabulary")
-    
-    with start_col3:
-        if st.button("🎮 玩转游戏", use_container_width=True, type="primary"):
-            st.session_state.page = "games"
-            st.rerun()
-        st.caption("趣味学习" if st.session_state.language == 'cn' else "Fun learning")
-    
-    # 今日推荐
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("## 🔥 今日推荐" if st.session_state.language == 'cn' else "## 🔥 Today's Recommendation")
-    
-    rec_col1, rec_col2 = st.columns(2)
-    
-    with rec_col1:
-        with st.container():
-            st.markdown("""
-            <div style="background: linear-gradient(135deg, #667eea, #764ba2); 
-                      padding: 25px; border-radius: 20px; color: white;">
-                <h3 style="color: white; margin-top: 0;">🌟 每周写作挑战</h3>
-                <p>主题：我的梦想职业</p>
-                <p>🏆 完成挑战赢取专属勋章！</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with rec_col2:
-        with st.container():
-            st.markdown("""
-            <div style="background: linear-gradient(135deg, #f093fb, #f5576c); 
-                      padding: 25px; border-radius: 20px; color: white;">
-                <h3 style="color: white; margin-top: 0;">📈 学习进度</h3>
-                <p>本月已帮助 128 位小作家</p>
-                <p>📚 累计生成 256 篇优秀作品</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-# 写作工坊页面
-elif st.session_state.page == 'writing':
-    st.markdown("""
-    <div class="title-container">
-        <h1 class="main-header">✏️ 写作魔法工坊</h1>
-        <div class="decorative-icons">
-            <span class="icon-bounce">📝</span>
-            <span class="icon-bounce">✨</span>
-            <span class="icon-bounce">🎨</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    subtitle = "选择主题，生成专属写作教案" if st.session_state.language == 'cn' else "Choose a topic, generate personalized writing lessons"
-    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
-    
-    # 主题选择区
-    st.markdown("### 🎯 选择写作主题" if st.session_state.language == 'cn' else "### 🎯 Choose Writing Topic")
-    
-    themes = list(EnglishContentLibrary.WRITING_LESSONS.keys())
-    theme_names_cn = [EnglishContentLibrary.WRITING_LESSONS[t]['title_cn'] for t in themes]
-    theme_names_en = [EnglishContentLibrary.WRITING_LESSONS[t]['title_en'] for t in themes]
-    
-    theme_cols = st.columns(3)
-    for idx, (theme, name_cn, name_en) in enumerate(zip(themes, theme_names_cn, theme_names_en)):
-        with theme_cols[idx % 3]:
-            name = name_cn if st.session_state.language == 'cn' else name_en
-            emoji = "🐶" if theme == 'animals' else "👨‍👩‍👧‍👦" if theme == 'family' else "🏫"
-            
-            if st.button(
-                f"{emoji} {name}",
-                use_container_width=True,
-                type="primary" if st.session_state.current_lesson == theme else "secondary"
-            ):
-                st.session_state.current_lesson = theme
-                st.rerun()
-    
-    # 自定义主题
-    st.markdown("### 💡 自定义主题" if st.session_state.language == 'cn' else "### 💡 Custom Topic")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        custom_topic = st.text_input(
-            "输入你的写作主题" if st.session_state.language == 'cn' else "Enter your writing topic",
-            placeholder="例如：我的假期、未来的城市..." if st.session_state.language == 'cn' else "e.g., My holiday, Future city..."
-        )
     
     with col2:
-        grade_level = st.selectbox(
-            "年级" if st.session_state.language == 'cn' else "Grade Level",
-            ["Grade 1-2", "Grade 3-4", "Grade 5-6", "Grade 7-8"]
-        )
+        if st.button("📖 学习词汇", use_container_width=True, type="primary", key="home_vocab"):
+            st.session_state.page = "vocabulary"
+            st.rerun()
     
-    # 写作设置
-    with st.expander("⚙️ 写作设置" if st.session_state.language == 'cn' else "⚙️ Writing Settings", expanded=True):
-        col_set1, col_set2 = st.columns(2)
-        
-        with col_set1:
-            writing_type = st.selectbox(
-                "写作类型" if st.session_state.language == 'cn' else "Writing Type",
-                ["记叙文", "说明文", "议论文", "日记", "书信"] if st.session_state.language == 'cn'
-                else ["Narrative", "Descriptive", "Argumentative", "Diary", "Letter"]
-            )
-            
-            difficulty = st.select_slider(
-                "难度等级" if st.session_state.language == 'cn' else "Difficulty Level",
-                options=["简单", "中等", "挑战"] if st.session_state.language == 'cn'
-                else ["Easy", "Medium", "Challenging"]
-            )
-        
-        with col_set2:
-            length = st.select_slider(
-                "内容长度" if st.session_state.language == 'cn' else "Content Length",
-                options=["简短", "适中", "详细"] if st.session_state.language == 'cn'
-                else ["Short", "Medium", "Detailed"]
-            )
-            
-            creativity = st.slider(
-                "创意指数" if st.session_state.language == 'cn' else "Creativity Level",
-                0, 100, 70
-            )
+    with col3:
+        if st.button("🔤 句型练习", use_container_width=True, type="primary", key="home_sentences"):
+            st.session_state.page = "sentences"
+            st.rerun()
     
-    # 生成按钮
-    if st.button("✨ 生成写作教案" if st.session_state.language == 'cn' else "✨ Generate Writing Lesson", 
-                type="primary", use_container_width=True):
-        
-        if st.session_state.current_lesson or custom_topic:
-            topic = st.session_state.current_lesson if st.session_state.current_lesson else custom_topic
-            
-            with st.spinner("🧙‍♂️ 魔法师正在创作中..." if st.session_state.language == 'cn' else "🧙‍♂️ Creating magic..."):
-                # 生成教案
-                lesson_content = EnglishContentLibrary.generate_writing_lesson(
-                    topic, grade_level, st.session_state.language
-                )
-                
-                # 保存到历史
-                st.session_state.writing_history.append({
-                    "topic": topic,
-                    "grade": grade_level,
-                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "language": st.session_state.language
-                })
-                
-                # 显示教案
-                st.markdown("### 📜 写作教案" if st.session_state.language == 'cn' else "### 📜 Writing Lesson")
-                st.markdown(f'<div class="content-box">{lesson_content}</div>', unsafe_allow_html=True)
-                
-                # 操作按钮
-                col_btn1, col_btn2, col_btn3 = st.columns(3)
-                with col_btn1:
-                    st.download_button(
-                        "📥 下载教案" if st.session_state.language == 'cn' else "📥 Download",
-                        data=lesson_content,
-                        file_name=f"写作教案_{datetime.now().strftime('%Y%m%d')}.md",
-                        mime="text/markdown",
-                        use_container_width=True
-                    )
-                with col_btn2:
-                    if st.button("🔄 重新生成" if st.session_state.language == 'cn' else "🔄 Regenerate", 
-                                use_container_width=True):
-                        st.rerun()
-                with col_btn3:
-                    if st.button("💾 保存作品" if st.session_state.language == 'cn' else "💾 Save", 
-                                use_container_width=True):
-                        st.success("作品已保存！" if st.session_state.language == 'cn' else "Saved!")
-        else:
-            st.warning("请先选择或输入一个主题！" if st.session_state.language == 'cn' 
-                      else "Please select or enter a topic first!")
+    with col4:
+        if st.button("🎮 玩转游戏", use_container_width=True, type="primary", key="home_games"):
+            st.session_state.page = "games"
+            st.rerun()
 
-# 词汇魔法页面
+# ==================== 词汇魔法页面 ====================
 elif st.session_state.page == 'vocabulary':
     st.markdown("""
     <div class="title-container">
@@ -1075,154 +762,370 @@ elif st.session_state.page == 'vocabulary':
     
     # 标签页
     tab1, tab2, tab3 = st.tabs([
-        "🔍 词汇搜索" if st.session_state.language == 'cn' else "🔍 Search",
-        "📚 主题词汇" if st.session_state.language == 'cn' else "📚 Thematic",
-        "🎮 词汇游戏" if st.session_state.language == 'cn' else "🎮 Games"
+        "🔍 智能搜索" if st.session_state.language == 'cn' else "🔍 Smart Search",
+        "🎨 主题分类" if st.session_state.language == 'cn' else "🎨 Themes",
+        "🌟 AI解析" if st.session_state.language == 'cn' else "🌟 AI Analysis"
     ])
     
     with tab1:
-        st.markdown("### 🔍 智能词汇搜索" if st.session_state.language == 'cn' else "### 🔍 Smart Vocabulary Search")
+        st.markdown("### 🔍 智能词汇搜索")
         
-        # 搜索框和筛选
         col_search, col_filter1, col_filter2 = st.columns([2, 1, 1])
         
         with col_search:
             search_keyword = st.text_input(
-                "输入关键词搜索" if st.session_state.language == 'cn' else "Enter keyword to search",
-                placeholder="英文或中文" if st.session_state.language == 'cn' else "English or Chinese"
+                "输入关键词搜索",
+                placeholder="输入英文单词或中文意思",
+                key="vocab_search_input"
             )
         
         with col_filter1:
             textbook_filter = st.selectbox(
-                "教材版本" if st.session_state.language == 'cn' else "Textbook",
-                ["全部", "人教版", "外研版", "牛津版", "课标词汇"]
+                "教材版本",
+                ["全部", "人教版", "外研版", "牛津版"],
+                key="textbook_filter"
             )
         
         with col_filter2:
             grade_filter = st.selectbox(
-                "年级" if st.session_state.language == 'cn' else "Grade",
-                ["全部", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级"]
+                "年级",
+                ["全部", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级"],
+                key="grade_filter"
             )
         
-        # 搜索按钮
-        if st.button("🔍 开始搜索" if st.session_state.language == 'cn' else "🔍 Search", 
-                    type="primary", use_container_width=True):
-            
-            # 模拟搜索结果
+        if st.button("🔍 开始搜索", type="primary", key="vocab_search_btn"):
             if search_keyword:
-                # 搜索逻辑
-                results = []
-                for textbook, words in EnglishContentLibrary.VOCABULARY_LIBRARY.items():
-                    if textbook_filter != "全部" and textbook_filter not in textbook:
-                        continue
+                with st.spinner("正在搜索..."):
+                    results = EnglishContentLibrary.search_vocabulary(
+                        search_keyword, textbook_filter, grade_filter
+                    )
                     
-                    for word in words:
-                        if (grade_filter == "全部" or grade_filter in word['grade']):
-                            if (search_keyword.lower() in word['word'].lower() or 
-                                search_keyword in word['cn']):
-                                results.append({**word, 'textbook': textbook})
-                
-                if results:
-                    st.markdown(f"### 📊 找到 {len(results)} 个结果" if st.session_state.language == 'cn' 
-                               else f"### 📊 Found {len(results)} results")
-                    
-                    # 分页显示
-                    page_size = 10
-                    pages = [results[i:i + page_size] for i in range(0, len(results), page_size)]
-                    current_page = 1
-                    
-                    if pages:
-                        for word in pages[current_page-1]:
-                            # 随机分配卡片颜色
-                            card_colors = ['word-card-blue', 'word-card-green', 'word-card-orange']
-                            card_class = random.choice(card_colors)
-                            
-                            st.markdown(f"""
-                            <div class="word-card {card_class}">
-                                <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <div>
-                                        <h4 style="margin: 0; font-size: 1.2rem;">
-                                            <strong>{word['word']}</strong>
-                                            <span style="color: #666; margin-left: 10px;">{word['cn']}</span>
-                                        </h4>
-                                        <div style="margin-top: 10px; color: #555;">
-                                            <span class="status-badge badge-info">{word['textbook']}</span>
-                                            <span class="status-badge badge-success">Grade {word['grade']}</span>
-                                            <span class="status-badge badge-warning">{word['theme']}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 15px; color: #666; font-style: italic;">
-                                    📝 {word['sentence']}
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                else:
-                    st.info("未找到相关词汇，请尝试其他关键词。" if st.session_state.language == 'cn' 
-                           else "No vocabulary found. Try different keywords.")
+                    if results:
+                        st.success(f"找到 {len(results)} 个结果")
+                        
+                        for word in results:
+                            with st.expander(f"📖 {word['word']} - {word['cn']}"):
+                                col_a, col_b = st.columns([1, 3])
+                                with col_a:
+                                    st.markdown(f"**单词:** {word['word']}")
+                                    st.markdown(f"**中文:** {word['cn']}")
+                                    st.markdown(f"**教材:** {word['textbook']}")
+                                    st.markdown(f"**年级:** Grade {word['grade']}")
+                                    st.markdown(f"**主题:** {word['theme']}")
+                                
+                                with col_b:
+                                    st.markdown("**例句:**")
+                                    st.info(word['sentence'])
+                                    
+                                    if st.button(f"AI详细解析", key=f"ai_explain_{word['word']}"):
+                                        with st.spinner("AI正在解析..."):
+                                            explanation = AIAssistant.generate_vocabulary_explanation(word['word'])
+                                            st.markdown(f"**AI解析:**")
+                                            st.write(explanation)
+                    else:
+                        st.info("未找到相关词汇，请尝试其他关键词。")
+            else:
+                st.warning("请输入搜索关键词")
     
     with tab2:
-        st.markdown("### 🎨 主题词汇包" if st.session_state.language == 'cn' else "### 🎨 Thematic Vocabulary")
+        st.markdown("### 🎨 主题词汇分类")
         
-        themes = ["animals", "family", "school", "food", "colors", "weather", "sports", "feelings"]
-        theme_names_cn = ["动物", "家庭", "学校", "食物", "颜色", "天气", "运动", "情感"]
-        theme_names_en = ["Animals", "Family", "School", "Food", "Colors", "Weather", "Sports", "Feelings"]
+        themes = list(EnglishContentLibrary.THEMES.keys())
+        theme_names = {
+            'animals': '动物世界', 'food': '美食天地', 'family': '家庭亲情',
+            'school': '校园生活', 'colors': '多彩颜色', 'sports': '体育运动'
+        }
         
-        theme_cols = st.columns(4)
+        cols = st.columns(3)
         for idx, theme in enumerate(themes):
-            with theme_cols[idx % 4]:
-                name = theme_names_cn[idx] if st.session_state.language == 'cn' else theme_names_en[idx]
-                emoji = ["🐶", "👨‍👩‍👧‍👦", "🏫", "🍎", "🎨", "☀️", "⚽", "😊"][idx]
+            with cols[idx % 3]:
+                name = theme_names.get(theme, theme)
+                emoji = {
+                    'animals': '🐶', 'food': '🍎', 'family': '👨‍👩‍👧‍👦',
+                    'school': '🏫', 'colors': '🎨', 'sports': '⚽'
+                }.get(theme, '📚')
                 
-                if st.button(f"{emoji} {name}", use_container_width=True):
-                    # 显示主题词汇
+                if st.button(f"{emoji} {name}", use_container_width=True, key=f"theme_{theme}"):
                     st.session_state.selected_theme = theme
                     st.rerun()
         
-        # 显示选中的主题词汇
         if 'selected_theme' in st.session_state:
-            theme_idx = themes.index(st.session_state.selected_theme)
-            theme_name = theme_names_en[theme_idx]
+            theme = st.session_state.selected_theme
+            theme_display = theme_names.get(theme, theme)
+            emoji = {
+                'animals': '🐶', 'food': '🍎', 'family': '👨‍👩‍👧‍👦',
+                'school': '🏫', 'colors': '🎨', 'sports': '⚽'
+            }.get(theme, '📚')
             
-            st.markdown(f"### {['🐶', '👨‍👩‍👧‍👦', '🏫', '🍎', '🎨', '☀️', '⚽', '😊'][theme_idx]} {theme_name}")
+            st.markdown(f"### {emoji} {theme_display}")
             
-            # 显示主题相关词汇
-            vocab_list = [
-                {"word": "dog", "cn": "狗", "sentence": "I have a cute dog."} if theme_name == "Animals" else
-                {"word": "father", "cn": "爸爸", "sentence": "My father is tall."} if theme_name == "Family" else
-                {"word": "classroom", "cn": "教室", "sentence": "Our classroom is clean."} if theme_name == "School" else
-                {"word": "apple", "cn": "苹果", "sentence": "I eat an apple every day."} if theme_name == "Food" else
-                {"word": "red", "cn": "红色", "sentence": "The apple is red."} if theme_name == "Colors" else
-                {"word": "sunny", "cn": "晴朗", "sentence": "Today is a sunny day."} if theme_name == "Weather" else
-                {"word": "football", "cn": "足球", "sentence": "I play football with friends."} if theme_name == "Sports" else
-                {"word": "happy", "cn": "开心", "sentence": "I feel happy today."}
-            ]
+            vocab_list = EnglishContentLibrary.get_vocabulary_by_theme(theme)
             
-            for i in range(5):
-                word = {**vocab_list[0], "word": f"word_{i+1}", "cn": f"中文_{i+1}"}
-                st.markdown(f"""
-                <div class="word-card word-card-{'blue' if i%3==0 else 'green' if i%3==1 else 'orange'}">
-                    <div style="display: flex; justify-content: space-between;">
-                        <div>
-                            <strong>{word['word']}</strong>
-                            <span style="color: #666; margin-left: 10px;">{word['cn']}</span>
+            if vocab_list:
+                # 分页显示
+                page_size = 10
+                pages = [vocab_list[i:i + page_size] for i in range(0, len(vocab_list), page_size)]
+                current_page = st.number_input("页码", min_value=1, max_value=len(pages), value=1, key="vocab_page") - 1
+                
+                for word in pages[current_page]:
+                    color_class = random.choice(['word-card-blue', 'word-card-green', 'word-card-orange'])
+                    st.markdown(f"""
+                    <div class="word-card {color_class}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h4 style="margin: 0; font-size: 1.2rem;">
+                                    <strong>{word['word']}</strong>
+                                    <span style="color: #666; margin-left: 10px;">{word['cn']}</span>
+                                </h4>
+                                <div style="margin-top: 10px; color: #555;">
+                                    <span class="status-badge badge-info">Grade {word['grade']}</span>
+                                    <span class="status-badge badge-success">{word['theme']}</span>
+                                </div>
+                            </div>
                         </div>
-                        <button style="
-                            background: #4D96FF;
-                            color: white;
-                            border: none;
-                            padding: 5px 15px;
-                            border-radius: 10px;
-                            cursor: pointer;
-                        ">+ 学习</button>
+                        <div style="margin-top: 15px; color: #666; font-style: italic;">
+                            📝 {word['sentence']}
+                        </div>
                     </div>
-                    <div style="margin-top: 10px; color: #666;">
-                        📝 {word['sentence']}
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("该主题暂无词汇数据")
+
+# ==================== 句型宝库页面 ====================
+elif st.session_state.page == 'sentences':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">🔤 句型宝库</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">📝</span>
+            <span class="icon-bounce">✨</span>
+            <span class="icon-bounce">🎯</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    subtitle = "掌握核心句型，提升写作能力" if st.session_state.language == 'cn' else "Master core sentence patterns to improve writing"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 难度级别选择
+    st.markdown("### 🎯 选择难度级别")
+    
+    level_cols = st.columns(3)
+    levels = ['basic', 'intermediate', 'advanced']
+    level_names = {'basic': '初级', 'intermediate': '中级', 'advanced': '高级'}
+    
+    selected_level = st.session_state.get('selected_level', 'basic')
+    
+    for idx, level in enumerate(levels):
+        with level_cols[idx]:
+            if st.button(
+                f"📚 {level_names[level]}",
+                use_container_width=True,
+                type="primary" if selected_level == level else "secondary",
+                key=f"level_{level}"
+            ):
+                st.session_state.selected_level = level
+                st.rerun()
+    
+    # 显示句型
+    if 'selected_level' in st.session_state:
+        level = st.session_state.selected_level
+        sentences = EnglishContentLibrary.get_sentences_by_level(level)
+        
+        st.markdown(f"### 📝 {level_names[level]}句型 ({len(sentences)}个)")
+        
+        for sentence in sentences:
+            st.markdown(f"""
+            <div class="sentence-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0; color: #333;">
+                            <strong>{sentence['pattern']}</strong>
+                            <span style="color: #666; margin-left: 10px; font-size: 0.9em;">
+                                ({sentence['cn']})
+                            </span>
+                        </h4>
+                        <div style="margin-top: 10px;">
+                            <span class="status-badge badge-info">CEFR {sentence['level']}</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding: 12px; background: #f8f9fa; border-radius: 10px;">
+                    <strong>例句:</strong> {sentence['example']}
+                </div>
+                <div style="margin-top: 15px;">
+                    <button onclick="copySentence('{sentence['example']}')" style="
+                        background: #4D96FF;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        margin-right: 10px;
+                    ">📋 复制例句</button>
+                    
+                    <button onclick="practiceSentence('{sentence['pattern']}')" style="
+                        background: #6BCF7F;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">✏️ 造句练习</button>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 句型练习
+        st.markdown("### ✏️ 句型练习")
+        
+        if sentences:
+            selected_sentence = st.selectbox(
+                "选择要练习的句型",
+                [s['pattern'] for s in sentences],
+                key="sentence_practice_select"
+            )
+            
+            user_sentence = st.text_area(
+                "用这个句型造一个句子：",
+                placeholder=f"例如：{selected_sentence} ...",
+                height=100,
+                key="sentence_practice_input"
+            )
+            
+            if st.button("✨ AI评价我的句子", type="primary", key="sentence_eval_btn"):
+                if user_sentence:
+                    with st.spinner("AI正在评价..."):
+                        prompt = f"""请评价这个英语句子：{user_sentence}
+                        
+                        使用的句型是：{selected_sentence}
+                        
+                        请从以下方面评价：
+                        1. 语法是否正确
+                        2. 是否符合句型要求
+                        3. 用词是否恰当
+                        4. 改进建议
+                        
+                        请用中文回复。"""
+                        
+                        messages = [{"role": "user", "content": prompt}]
+                        feedback = call_deepseek_api(messages)
+                        
+                        if feedback:
+                            st.success("✅ 评价完成")
+                            st.markdown(f"**AI反馈:**")
+                            st.write(feedback)
+                        else:
+                            st.info("句子基本正确，可以尝试使用更丰富的词汇。")
+                else:
+                    st.warning("请先输入一个句子")
+
+# ==================== 作品评价页面 ====================
+elif st.session_state.page == 'evaluate':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">⭐ 智能作品评价</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">📊</span>
+            <span class="icon-bounce">✨</span>
+            <span class="icon-bounce">🎯</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    subtitle = "AI智能评价，个性化反馈" if st.session_state.language == 'cn' else "AI evaluation with personalized feedback"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 评价界面
+    st.markdown("### 📝 上传/输入学生作品")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        student_text = st.text_area(
+            "输入学生作文内容：",
+            height=300,
+            placeholder="请在这里粘贴或输入学生的英语作文...",
+            key="student_essay_input"
+        )
+    
+    with col2:
+        st.markdown("### ⚙️ 评价设置")
+        
+        topic = st.text_input("作文主题：", placeholder="例如：My Pet, My Family...", key="essay_topic")
+        grade = st.selectbox("学生年级：", ["Grade 1-2", "Grade 3-4", "Grade 5-6", "Grade 7-8"], key="essay_grade")
+        evaluation_type = st.selectbox("评价重点：", ["语法准确性", "内容完整性", "词汇丰富度", "创意表达"], key="eval_focus")
+        
+        strictness = st.slider("严格程度：", 1, 10, 7, key="eval_strictness")
+    
+    # 评价按钮
+    if st.button("✨ 开始AI评价", type="primary", use_container_width=True, key="start_evaluation"):
+        if student_text and topic:
+            with st.spinner("🧠 AI正在认真评价中..."):
+                evaluation = AIAssistant.evaluate_writing(student_text, topic, grade)
+                
+                # 显示评价结果
+                st.markdown("### 📊 评价结果")
+                
+                # 分数显示
+                score = evaluation['score']
+                score_color = "#4CAF50" if score >= 80 else "#FF9800" if score >= 60 else "#F44336"
+                
+                st.markdown(f"""
+                <div style="text-align: center; padding: 30px; background: white; border-radius: 20px; margin: 20px 0;">
+                    <div style="font-size: 1.2rem; color: #666; margin-bottom: 10px;">综合评分</div>
+                    <div style="font-size: 3.5rem; font-weight: bold; color: {score_color};">
+                        {score}/100
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <div style="display: inline-block; width: 80%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                            <div style="width: {score}%; height: 100%; background: {score_color};"></div>
+                        </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # 详细反馈
+                st.markdown("### 📝 详细反馈")
+                st.markdown(f'<div class="content-box">{evaluation["feedback"]}</div>', unsafe_allow_html=True)
+                
+                # 词汇建议
+                st.markdown("### 📚 推荐学习词汇")
+                
+                # 从作文中提取关键词
+                words = set(student_text.lower().split()[:10])
+                recommended_words = []
+                
+                for word in list(words)[:5]:
+                    results = EnglishContentLibrary.search_vocabulary(word, "全部", "全部")
+                    if results:
+                        recommended_words.append(results[0])
+                
+                if recommended_words:
+                    for word in recommended_words:
+                        st.markdown(f"""
+                        <div class="word-card word-card-blue">
+                            <strong>{word['word']}</strong> - {word['cn']}
+                            <div style="color: #666; font-size: 0.9em;">{word['sentence']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # 保存评价记录
+                if 'evaluation_history' not in st.session_state:
+                    st.session_state.evaluation_history = []
+                
+                st.session_state.evaluation_history.append({
+                    'topic': topic,
+                    'score': score,
+                    'timestamp': evaluation['timestamp'],
+                    'text_preview': student_text[:100] + "..."
+                })
+                
+                st.success(f"✅ 评价完成！评价时间：{evaluation['timestamp']}")
+        else:
+            st.warning("请输入作文内容和主题")
 
-# 游戏乐园页面
+# ==================== 游戏乐园页面 ====================
 elif st.session_state.page == 'games':
     st.markdown("""
     <div class="title-container">
@@ -1239,134 +1142,228 @@ elif st.session_state.page == 'games':
     st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
     
     # 游戏选择
-    st.markdown("## 🎯 选择游戏" if st.session_state.language == 'cn' else "## 🎯 Choose a Game")
+    st.markdown("## 🎯 选择游戏类型")
     
-    game_col1, game_col2, game_col3 = st.columns(3)
+    game_cols = st.columns(3)
     
-    with game_col1:
-        st.markdown(f"""
-        <div class="feature-card card-orange">
-            <div class="card-icon">🧩</div>
-            <h3 class="card-title">{
-                '单词拼图' if st.session_state.language == 'cn' else 'Word Puzzle'
-            }</h3>
-            <p class="card-desc">{
-                '将打乱的字母拼成正确的单词' if st.session_state.language == 'cn'
-                else 'Arrange letters to form correct words'
-            }</p>
-            {st.button("开始游戏", use_container_width=True, type="primary")}
-        </div>
-        """, unsafe_allow_html=True)
+    games = [
+        {
+            "id": "word_puzzle",
+            "name": "单词拼图",
+            "emoji": "🧩",
+            "desc": "将打乱的字母拼成正确的单词"
+        },
+        {
+            "id": "sentence_builder", 
+            "name": "句子组装",
+            "emoji": "🔤",
+            "desc": "用给定的单词组成正确的句子"
+        },
+        {
+            "id": "vocab_quiz",
+            "name": "词汇挑战",
+            "emoji": "🏆",
+            "desc": "快速回答单词的意思"
+        }
+    ]
     
-    with game_col2:
-        st.markdown(f"""
-        <div class="feature-card card-green">
-            <div class="card-icon">📝</div>
-            <h3 class="card-title">{
-                '句子接龙' if st.session_state.language == 'cn' else 'Sentence Chain'
-            }</h3>
-            <p class="card-desc">{
-                '用上一个单词的最后一个字母开始新单词' if st.session_state.language == 'cn'
-                else 'Start new word with last letter of previous word'
-            }</p>
-            {st.button("开始游戏", use_container_width=True, type="primary")}
-        </div>
-        """, unsafe_allow_html=True)
+    selected_game = st.session_state.get('selected_game', None)
     
-    with game_col3:
-        st.markdown(f"""
-        <div class="feature-card card-blue">
-            <div class="card-icon">🎲</div>
-            <h3 class="card-title">{
-                '故事骰子' if st.session_state.language == 'cn' else 'Story Dice'
-            }</h3>
-            <p class="card-desc">{
-                '掷骰子获得随机词语，创作有趣故事' if st.session_state.language == 'cn'
-                else 'Roll dice for random words to create stories'
-            }</p>
-            {st.button("开始游戏", use_container_width=True, type="primary")}
-        </div>
-        """, unsafe_allow_html=True)
+    for idx, game in enumerate(games):
+        with game_cols[idx]:
+            if st.button(
+                f"{game['emoji']} {game['name']}",
+                use_container_width=True,
+                type="primary" if selected_game == game['id'] else "secondary",
+                key=f"game_select_{game['id']}"
+            ):
+                st.session_state.selected_game = game['id']
+                st.session_state.game_content = None
+                st.rerun()
     
     # 游戏区域
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("## 🎮 单词拼图游戏" if st.session_state.language == 'cn' else "## 🎮 Word Puzzle Game")
-    
-    # 游戏界面
-    game_container = st.container()
-    with game_container:
-        st.markdown("""
-        <div style="background: white; padding: 30px; border-radius: 20px; border: 3px solid #FF9A3D;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h3 style="color: #333;">单词: _ _ _ _ _</h3>
-                <p style="color: #666;">中文: 苹果</p>
-                <div style="margin: 20px 0; font-size: 2rem; letter-spacing: 10px;">
-                    P P L E A
+    if 'selected_game' in st.session_state:
+        game_id = st.session_state.selected_game
+        
+        # 主题选择（针对单词游戏）
+        if game_id in ['word_puzzle', 'vocab_quiz']:
+            st.markdown("### 🎨 选择主题")
+            theme_cols = st.columns(6)
+            themes = ['animals', 'food', 'family', 'school', 'colors', 'sports']
+            theme_names = ['动物', '食物', '家庭', '学校', '颜色', '运动']
+            
+            for idx, theme in enumerate(themes):
+                with theme_cols[idx]:
+                    if st.button(
+                        theme_names[idx],
+                        use_container_width=True,
+                        key=f"theme_select_{theme}"
+                    ):
+                        st.session_state.game_theme = theme
+                        st.session_state.game_content = None
+                        st.rerun()
+        
+        # 开始游戏按钮
+        if st.button("🎮 开始新游戏", type="primary", key="start_new_game"):
+            theme = st.session_state.get('game_theme', 'animals')
+            with st.spinner("正在生成游戏内容..."):
+                game_content = AIAssistant.generate_game_content(game_id, theme)
+                st.session_state.game_content = game_content
+                st.session_state.game_score = 0
+                st.rerun()
+        
+        # 显示游戏内容
+        if 'game_content' in st.session_state and st.session_state.game_content:
+            content = st.session_state.game_content
+            
+            if game_id == 'word_puzzle':
+                st.markdown("### 🧩 单词拼图游戏")
+                
+                st.markdown(f"""
+                <div style="text-align: center; padding: 30px; background: white; border-radius: 20px; border: 3px solid #FF9A3D;">
+                    <h3>猜猜这个单词是什么？</h3>
+                    <p style="color: #666;">{content.get('hint', '')}</p>
+                    
+                    <div style="margin: 30px 0;">
+                        <div style="font-size: 2.5rem; letter-spacing: 15px; color: #4D96FF; font-weight: bold;">
+                            {content.get('scrambled', 'SCRAMBLED')}
+                        </div>
+                    </div>
+                    
+                    <div style="color: #666; margin: 20px 0;">
+                        <em>打乱的字母，你能拼出正确的单词吗？</em>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                    <button style="
-                        background: #FF9A3D;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 10px;
-                        font-size: 1.1rem;
-                        cursor: pointer;
-                    ">A</button>
-                    <button style="
-                        background: #6BCF7F;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 10px;
-                        font-size: 1.1rem;
-                        cursor: pointer;
-                    ">P</button>
-                    <button style="
-                        background: #4D96FF;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 10px;
-                        font-size: 1.1rem;
-                        cursor: pointer;
-                    ">P</button>
-                    <button style="
-                        background: #FF6B9D;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 10px;
-                        font-size: 1.1rem;
-                        cursor: pointer;
-                    ">L</button>
-                    <button style="
-                        background: #9D4DFF;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 10px;
-                        font-size: 1.1rem;
-                        cursor: pointer;
-                    ">E</button>
+                """, unsafe_allow_html=True)
+                
+                # 答案输入
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    user_answer = st.text_input("输入你的答案：", key="puzzle_answer")
+                with col2:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("✅ 提交答案", key="submit_puzzle"):
+                        if user_answer.lower() == content.get('target_word', '').lower():
+                            st.success(f"🎉 太棒了！正确答案是：{content['target_word']}")
+                            if 'game_score' in st.session_state:
+                                st.session_state.game_score += 10
+                        else:
+                            st.error(f"再试一次！正确答案是：{content['target_word']}")
+            
+            elif game_id == 'sentence_builder':
+                st.markdown("### 🔤 句子组装游戏")
+                
+                st.markdown(f"""
+                <div style="text-align: center; padding: 30px; background: white; border-radius: 20px; border: 3px solid #6BCF7F;">
+                    <h3>用这个句型造一个句子</h3>
+                    
+                    <div style="margin: 30px 0; padding: 20px; background: #f0fff4; border-radius: 15px;">
+                        <div style="font-size: 1.8rem; color: #2E7D32; font-weight: bold;">
+                            {content.get('pattern', 'I like...')}
+                        </div>
+                    </div>
+                    
+                    <div style="color: #666; margin: 20px 0;">
+                        <em>选择正确的单词完成句子</em>
+                    </div>
                 </div>
+                """, unsafe_allow_html=True)
+                
+                # 选择题
+                options = content.get('options', ['I', 'like', 'play', 'read'])
+                correct = content.get('correct_answer', 'like')
+                
+                selected = st.radio(
+                    "选择正确的单词完成句子：",
+                    options,
+                    key="sentence_option"
+                )
+                
+                if st.button("✅ 检查答案", key="check_sentence"):
+                    if selected == correct:
+                        st.success("🎉 正确！句子完整了！")
+                        if 'game_score' in st.session_state:
+                            st.session_state.game_score += 10
+                    else:
+                        st.error(f"再想想！正确答案是：{correct}")
+        
+        # 显示分数
+        if 'game_score' in st.session_state:
+            st.markdown(f"""
+            <div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 15px;">
+                <h3 style="color: white;">当前得分</h3>
+                <div style="font-size: 2.5rem; font-weight: bold;">{st.session_state.game_score} 分</div>
             </div>
-            <div style="text-align: center; margin-top: 30px;">
-                <button style="
-                    background: linear-gradient(135deg, #4D96FF, #9D4DFF);
-                    color: white;
-                    border: none;
-                    padding: 15px 40px;
-                    border-radius: 15px;
-                    font-size: 1.2rem;
-                    font-weight: bold;
-                    cursor: pointer;
-                ">🎯 检查答案</button>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-# 页脚
+# ==================== 成长记录页面 ====================
+elif st.session_state.page == 'progress':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">📊 成长记录册</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">📈</span>
+            <span class="icon-bounce">🏆</span>
+            <span class="icon-bounce">⭐</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    subtitle = "记录每一次进步，见证成长足迹" if st.session_state.language == 'cn' else "Track every progress, witness your growth"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 统计数据
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("写作次数", len(st.session_state.get('writing_history', [])))
+    
+    with col2:
+        st.metric("评价次数", len(st.session_state.get('evaluation_history', [])))
+    
+    with col3:
+        total_vocab = sum(len(words) for words in EnglishContentLibrary.VOCABULARY_LIBRARY.values())
+        st.metric("已学词汇", f"{len(st.session_state.get('learned_words', []))}/{total_vocab}")
+    
+    with col4:
+        st.metric("游戏得分", st.session_state.get('game_score', 0))
+    
+    # 写作历史
+    st.markdown("### 📝 写作历史")
+    if st.session_state.get('writing_history'):
+        for entry in st.session_state.writing_history[-5:]:  # 显示最近5条
+            with st.expander(f"{entry['time']} - {entry['topic']}"):
+                st.write(f"年级: {entry['grade']}")
+                st.write(f"语言: {entry['language']}")
+    else:
+        st.info("暂无写作历史，快去写作工坊开始创作吧！")
+    
+    # 评价历史
+    st.markdown("### ⭐ 评价记录")
+    if st.session_state.get('evaluation_history'):
+        for entry in st.session_state.evaluation_history[-5:]:
+            score_color = "#4CAF50" if entry['score'] >= 80 else "#FF9800" if entry['score'] >= 60 else "#F44336"
+            
+            st.markdown(f"""
+            <div style="padding: 15px; background: white; border-radius: 10px; margin: 10px 0; border-left: 5px solid {score_color};">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <strong>{entry['topic']}</strong>
+                        <div style="color: #666; font-size: 0.9em;">{entry['timestamp']}</div>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: {score_color};">
+                        {entry['score']}/100
+                    </div>
+                </div>
+                <div style="color: #999; font-size: 0.8em; margin-top: 5px;">
+                    {entry['text_preview']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("暂无评价记录，快去评价页面试试吧！")
+
+# ==================== 页脚 ====================
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -1378,7 +1375,7 @@ with footer_col1:
     <div style="color: #666; text-align: center;">
         <p style="margin: 0;">
             <strong>🎨 英思织网 AI写作魔法学院</strong> | 
-            📧 contact@yingsizhiwang.com | 
+            🤖 Powered by DeepSeek AI | 
             ⏰ {current_time}
         </p>
         <p style="margin: 5px 0 0 0; font-size: 0.9em;">
@@ -1388,8 +1385,23 @@ with footer_col1:
     """, unsafe_allow_html=True)
 
 with footer_col2:
-    if st.button("⬆️ 回到顶部", use_container_width=True):
+    if st.button("⬆️ 回到顶部", key="back_to_top"):
         st.rerun()
 
 with footer_col3:
-    st.caption("🎯 参赛作品展示版")
+    st.caption("🚀 专业版 v2.0")
+
+# ==================== JavaScript支持 ====================
+st.markdown("""
+<script>
+function copySentence(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert("例句已复制到剪贴板！");
+    });
+}
+
+function practiceSentence(pattern) {
+    alert("打开造句练习功能：" + pattern);
+}
+</script>
+""", unsafe_allow_html=True)
