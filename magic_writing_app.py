@@ -1,1192 +1,1395 @@
-# web_app_fun.py - 活泼童真又专业的AI写作教学平台
 import streamlit as st
-import requests
+import pandas as pd
+import random
 from datetime import datetime
-import time
+import json
 
-# ======================== 页面配置 ========================
+# ==================== 页面配置 ====================
 st.set_page_config(
-    page_title="英思织网 - AI写作教学平台",
-    page_icon="✏️",
+    page_title="🎨 英思织网 | AI写作魔法学院",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ======================== 活泼专业的CSS样式 ========================
+# ==================== 精美CSS样式 ====================
 st.markdown("""
 <style>
-    /* 活泼的渐变背景 */
+    /* 梦幻渐变背景 */
     .stApp {
-        background: linear-gradient(135deg, #f5f7ff 0%, #f0f9ff 100%);
+        background: linear-gradient(135deg, #fdfcfb 0%, #f8f4ff 25%, #eef7ff 50%, #f0f9ff 75%, #fff9f0 100%);
+        background-attachment: fixed;
     }
     
-    /* 主标题 - 彩虹渐变色 */
-    .main-title {
+    /* 主标题 - 彩虹渐变 */
+    .main-header {
         text-align: center;
-        background: linear-gradient(90deg, #FF6B6B, #FFD166, #06D6A0, #118AB2, #7209B7);
+        background: linear-gradient(90deg, 
+            #FF6B9D 0%, 
+            #FF9A3D 20%, 
+            #FFD93D 40%, 
+            #6BCF7F 60%, 
+            #4D96FF 80%, 
+            #9D4DFF 100%
+        );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 2.8em;
-        font-weight: 800;
-        margin-bottom: 10px;
-        padding: 20px;
+        font-size: 3.2rem !important;
+        font-weight: 900 !important;
+        font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', cursive;
+        margin: 10px 0 5px 0 !important;
+        padding: 15px;
         position: relative;
     }
     
-    .main-title::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 25%;
-        width: 50%;
-        height: 5px;
-        background: linear-gradient(90deg, #FF6B6B, #FFD166, #06D6A0);
-        border-radius: 10px;
+    .title-container {
+        position: relative;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .decorative-icons {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 5px;
+        font-size: 1.8rem;
+    }
+    
+    .icon-bounce {
+        animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
     }
     
     /* 副标题 */
-    .sub-title {
+    .subtitle-text {
         text-align: center;
-        color: #4A5568;
-        font-size: 1.2em;
-        margin-bottom: 30px;
-        font-weight: 400;
+        color: #666;
+        font-size: 1.2rem;
+        font-family: 'Comic Sans MS', cursive;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 15px 30px;
+        border-radius: 50px;
+        border: 3px dashed #FF9A3D;
+        display: inline-block;
+        margin: 10px auto 30px auto;
+        box-shadow: 0 5px 15px rgba(255, 154, 61, 0.1);
     }
     
-    /* 彩色功能卡片 */
-    .fun-card {
+    /* 功能卡片 */
+    .feature-card {
         background: white;
-        border-radius: 20px;
-        padding: 25px;
+        border-radius: 25px;
+        padding: 30px;
         margin: 15px 0;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        border-top: 6px solid;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-top: 8px solid;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        height: 100%;
         position: relative;
         overflow: hidden;
     }
     
-    .fun-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
-    }
-    
-    .fun-card:hover {
+    .feature-card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     }
     
-    /* 卡片颜色 */
-    .card-red { border-color: #FF6B6B; background: linear-gradient(135deg, #fff5f5, #fff); }
-    .card-orange { border-color: #FFD166; background: linear-gradient(135deg, #fffaf0, #fff); }
-    .card-green { border-color: #06D6A0; background: linear-gradient(135deg, #f0fff4, #fff); }
-    .card-blue { border-color: #118AB2; background: linear-gradient(135deg, #f0f9ff, #fff); }
-    .card-purple { border-color: #7209B7; background: linear-gradient(135deg, #f9f0ff, #fff); }
-    .card-teal { border-color: #0D9488; background: linear-gradient(135deg, #f0fdfa, #fff); }
+    .card-orange { border-color: #FF9A3D; background: linear-gradient(135deg, #FFF9F0, white); }
+    .card-green { border-color: #6BCF7F; background: linear-gradient(135deg, #F0FFF4, white); }
+    .card-blue { border-color: #4D96FF; background: linear-gradient(135deg, #F0F8FF, white); }
+    .card-pink { border-color: #FF6B9D; background: linear-gradient(135deg, #FFF0F5, white); }
+    .card-purple { border-color: #9D4DFF; background: linear-gradient(135deg, #F5F0FF, white); }
+    .card-teal { border-color: #20C997; background: linear-gradient(135deg, #E6FFF7, white); }
     
     .card-icon {
-        font-size: 2.5em;
+        font-size: 2.8rem;
         margin-bottom: 15px;
-        display: inline-block;
-        background: linear-gradient(135deg, currentColor, rgba(255,255,255,0.8));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        display: block;
     }
     
     .card-title {
-        font-size: 1.4em;
-        font-weight: 700;
-        color: #2D3748;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #333;
         margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        font-family: 'Comic Sans MS', cursive;
     }
     
     .card-desc {
-        color: #718096;
-        font-size: 0.95em;
+        color: #666;
+        font-size: 1rem;
         line-height: 1.6;
+        font-family: 'Arial Rounded MT Bold', sans-serif;
     }
     
-    /* 彩色按钮 */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* 按钮样式 */
+    .fun-button {
+        background: linear-gradient(135deg, #FF9A3D, #FFD93D);
         color: white;
         border: none;
-        padding: 12px 24px;
         border-radius: 15px;
-        font-weight: 600;
-        font-size: 1em;
+        padding: 12px 25px;
+        font-weight: 700;
+        font-size: 1.1rem;
         transition: all 0.3s;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        cursor: pointer;
+        box-shadow: 0 5px 15px rgba(255, 154, 61, 0.3);
     }
     
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    .fun-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255, 154, 61, 0.4);
+        background: linear-gradient(135deg, #FFD93D, #FF9A3D);
     }
     
-    .stButton > button:active {
-        transform: translateY(0);
+    .primary-button {
+        background: linear-gradient(135deg, #4D96FF, #9D4DFF);
+        box-shadow: 0 5px 15px rgba(77, 150, 255, 0.3);
     }
     
-    /* 特殊按钮 */
-    .primary-btn button {
-        background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%) !important;
-        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3) !important;
+    .primary-button:hover {
+        background: linear-gradient(135deg, #9D4DFF, #4D96FF);
+        box-shadow: 0 8px 20px rgba(77, 150, 255, 0.4);
     }
     
-    .primary-btn button:hover {
-        background: linear-gradient(135deg, #FF8E53 0%, #FF6B6B 100%) !important;
-        box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4) !important;
-    }
-    
-    /* 侧边栏 - 彩虹渐变 */
+    /* 侧边栏 */
     section[data-testid="stSidebar"] > div {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
     }
     
-    /* 彩虹导航按钮 */
-    .nav-btn {
+    .sidebar-header {
+        text-align: center;
+        padding: 20px 10px;
+        border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-button {
         width: 100%;
-        margin: 8px 0;
-        padding: 14px 20px;
         text-align: left;
         background: rgba(255,255,255,0.1);
         border: none;
         color: white;
         border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.3s;
-        font-size: 16px;
+        padding: 15px;
+        margin: 5px 0;
+        font-size: 1rem;
         font-weight: 500;
-        border-left: 4px solid transparent;
+        transition: all 0.3s;
         display: flex;
         align-items: center;
-        gap: 12px;
-        position: relative;
-        overflow: hidden;
+        gap: 10px;
     }
     
-    .nav-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-    
-    .nav-btn:hover::before {
-        left: 100%;
-    }
-    
-    .nav-btn:hover {
-        background: rgba(255,255,255,0.15);
+    .nav-button:hover {
+        background: rgba(255,255,255,0.2);
         transform: translateX(5px);
     }
     
-    .nav-btn.active {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
-        border-left: 4px solid #FFD166;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    .nav-button.active {
+        background: linear-gradient(135deg, #FF9A3D, #FFD93D);
+        box-shadow: 0 5px 15px rgba(255, 154, 61, 0.3);
     }
     
-    /* 标签页彩虹效果 */
+    /* 输入框 */
+    .stTextArea textarea, .stTextInput input {
+        border-radius: 15px !important;
+        border: 2px solid #E2E8F0 !important;
+        padding: 12px !important;
+        font-size: 1rem !important;
+    }
+    
+    .stTextArea textarea:focus, .stTextInput input:focus {
+        border-color: #FF9A3D !important;
+        box-shadow: 0 0 0 3px rgba(255, 154, 61, 0.1) !important;
+    }
+    
+    /* 标签页 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 5px;
-        background: linear-gradient(135deg, #f0f9ff, #f5f0ff);
+        gap: 8px;
+        background: #F7FAFC;
         padding: 8px;
         border-radius: 15px;
     }
     
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px;
-        padding: 12px 20px;
+        padding: 12px 24px;
         background: white;
-        font-weight: 500;
-        color: #4A5568;
-        transition: all 0.3s;
         border: 2px solid transparent;
+        font-weight: 600;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        border: 2px solid #FFD166;
+        background: linear-gradient(135deg, #FF9A3D, #FFD93D);
+        color: white !important;
+        border: 2px solid white !important;
+        box-shadow: 0 5px 15px rgba(255, 154, 61, 0.2);
     }
     
-    /* 响应框 - 云朵气泡样式 */
-    .bubble-box {
+    /* 内容框 */
+    .content-box {
         background: white;
-        padding: 25px;
         border-radius: 20px;
+        padding: 25px;
         margin: 20px 0;
         border: 2px solid #E2E8F0;
-        position: relative;
         box-shadow: 0 8px 25px rgba(0,0,0,0.05);
     }
     
-    .bubble-box::before {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(135deg, #FF6B6B, #FFD166, #06D6A0, #118AB2);
-        border-radius: 22px;
-        z-index: -1;
-        opacity: 0.1;
-    }
-    
-    /* 彩虹进度条 */
-    .stProgress > div > div > div {
-        background: linear-gradient(90deg, #FF6B6B, #FFD166, #06D6A0, #118AB2) !important;
-    }
-    
-    /* 彩虹分隔线 */
-    .rainbow-divider {
-        height: 3px;
-        background: linear-gradient(90deg, #FF6B6B, #FFD166, #06D6A0, #118AB2, #7209B7);
-        border-radius: 10px;
-        margin: 30px 0;
-        opacity: 0.7;
-    }
-    
-    /* 可爱的状态标签 */
-    .fun-badge {
+    /* 状态标签 */
+    .status-badge {
         display: inline-block;
         padding: 6px 16px;
         border-radius: 20px;
         font-weight: 600;
-        font-size: 0.85em;
-        margin: 5px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        font-size: 0.9rem;
+        margin: 3px;
     }
     
-    .badge-success {
-        background: linear-gradient(135deg, #06D6A0, #10B981);
+    .badge-success { background: linear-gradient(135deg, #6BCF7F, #4CAF50); color: white; }
+    .badge-warning { background: linear-gradient(135deg, #FFD93D, #FF9800); color: white; }
+    .badge-info { background: linear-gradient(135deg, #4D96FF, #2196F3); color: white; }
+    
+    /* 词汇卡片 */
+    .word-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 10px 0;
+        border-left: 5px solid;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    
+    .word-card-blue { border-color: #4D96FF; }
+    .word-card-green { border-color: #6BCF7F; }
+    .word-card-orange { border-color: #FF9A3D; }
+    
+    /* 分页器 */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .page-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: #F7FAFC;
+        color: #666;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .page-btn:hover {
+        background: #E2E8F0;
+    }
+    
+    .page-btn.active {
+        background: linear-gradient(135deg, #FF9A3D, #FFD93D);
         color: white;
-    }
-    
-    .badge-warning {
-        background: linear-gradient(135deg, #FFD166, #F59E0B);
-        color: white;
-    }
-    
-    .badge-info {
-        background: linear-gradient(135deg, #118AB2, #3B82F6);
-        color: white;
-    }
-    
-    .badge-purple {
-        background: linear-gradient(135deg, #7209B7, #8B5CF6);
-        color: white;
-    }
-    
-    /* 输入框彩虹边框 */
-    .stTextArea textarea:focus,
-    .stTextInput input:focus {
-        border: 2px solid #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
-    }
-    
-    /* 可爱的emoji装饰 */
-    .emoji-deco {
-        font-size: 1.5em;
-        margin: 0 5px;
-        animation: bounce 2s infinite;
-    }
-    
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
     }
     
     /* 响应式调整 */
     @media (max-width: 768px) {
-        .main-title {
-            font-size: 2em;
+        .main-header {
+            font-size: 2.2rem !important;
         }
-        
-        .fun-card {
+        .subtitle-text {
+            font-size: 1rem;
+            padding: 12px 20px;
+        }
+        .feature-card {
             padding: 20px;
-        }
-        
-        .nav-btn {
-            padding: 12px 15px;
-            font-size: 14px;
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ======================== 初始化状态 ========================
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = 'home'
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+# ==================== 初始化状态 ====================
+if 'page' not in st.session_state:
+    st.session_state.page = 'home'
+if 'language' not in st.session_state:
+    st.session_state.language = 'cn'
+if 'writing_history' not in st.session_state:
+    st.session_state.writing_history = []
+if 'current_lesson' not in st.session_state:
+    st.session_state.current_lesson = None
 
-# ======================== API函数 ========================
-def call_deepseek_api(prompt, system_message="你是一位专业又有趣的写作教师", max_tokens=2000, temperature=0.7):
-    """调用DeepSeek API"""
-    if not st.session_state.api_key:
-        return None, "请先输入API密钥"
+# ==================== 内置教学内容库 ====================
+class EnglishContentLibrary:
+    """内置英语教学内容库（完全免API）"""
     
-    try:
-        url = "https://api.deepseek.com/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {st.session_state.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": max_tokens,
-            "temperature": temperature
-        }
-        
-        response = requests.post(url, json=data, headers=headers, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result["choices"][0]["message"]["content"], None
-        else:
-            return None, f"API请求失败: {response.status_code}"
-            
-    except Exception as e:
-        return None, f"发生错误: {str(e)}"
+    WRITING_LESSONS = {
+        'animals': {
+            'title_cn': '我的宠物朋友',
+            'title_en': 'My Pet Friend',
+            'content_cn': """
+# 🐶 我的宠物朋友 - 写作教案
 
-# ======================== 彩虹侧边栏 ========================
+## 📝 学习目标
+1. 学习描述动物的外貌特征
+2. 掌握表达情感的词汇
+3. 能够写一篇关于宠物的短文
+
+## 🎯 重点词汇
+- **外貌**: fluffy (毛茸茸的), furry (毛绒的), cute (可爱的), tiny (小小的)
+- **动作**: run (跑), jump (跳), play (玩), sleep (睡觉)
+- **情感**: happy (开心的), friendly (友好的), lovely (可爱的)
+
+## ✍️ 写作结构
+1. **开头**: 介绍你的宠物
+   - I have a pet. It is a...
+   - My pet's name is...
+
+2. **中间**: 描述宠物特点
+   - It is... (颜色/大小)
+   - It has... (外貌特征)
+   - It likes to... (喜好)
+
+3. **结尾**: 表达感情
+   - I love my pet.
+   - My pet makes me happy.
+
+## 📖 范文示例
+My pet is a small dog. His name is Coco. He is brown and white. Coco has big eyes and a long tail. He likes to play with balls. Every day, I play with him in the park. Coco is my best friend. I love him very much.
+
+## 🎮 写作练习
+1. 画一张你的宠物图片
+2. 写出5个描述宠物的词
+3. 写一篇关于宠物的短文（5句话）
+
+## 🏆 评价标准
+✅ 使用正确单词（15分）
+✅ 句子通顺（15分）
+✅ 情感表达（10分）
+✅ 创意加分（10分）
+            """,
+            'content_en': """
+# 🐶 My Pet Friend - Writing Lesson
+
+## 📝 Learning Objectives
+1. Learn to describe animals' appearance
+2. Master vocabulary for expressing emotions
+3. Write a short paragraph about a pet
+
+## 🎯 Key Vocabulary
+- **Appearance**: fluffy, furry, cute, tiny
+- **Actions**: run, jump, play, sleep
+- **Emotions**: happy, friendly, lovely
+
+## ✍️ Writing Structure
+1. **Introduction**: Introduce your pet
+   - I have a pet. It is a...
+   - My pet's name is...
+
+2. **Body**: Describe pet's features
+   - It is... (color/size)
+   - It has... (appearance)
+   - It likes to... (likes)
+
+3. **Conclusion**: Express feelings
+   - I love my pet.
+   - My pet makes me happy.
+
+## 📖 Example
+My pet is a small dog. His name is Coco. He is brown and white. Coco has big eyes and a long tail. He likes to play with balls. Every day, I play with him in the park. Coco is my best friend. I love him very much.
+
+## 🎮 Writing Practice
+1. Draw a picture of your pet
+2. Write 5 words to describe pets
+3. Write a paragraph about a pet (5 sentences)
+
+## 🏆 Evaluation Criteria
+✅ Correct vocabulary (15 points)
+✅ Clear sentences (15 points)
+✅ Emotional expression (10 points)
+✅ Creativity bonus (10 points)
+            """
+        },
+        'family': {
+            'title_cn': '我的家人',
+            'title_en': 'My Family',
+            'content_cn': """
+# 👨‍👩‍👧‍👦 我的家人 - 写作教案
+
+## 📝 学习目标
+1. 学习家庭成员的称呼
+2. 能够描述家人的外貌和性格
+3. 学会表达对家人的爱
+
+## 🎯 重点词汇
+- **家庭成员**: father (爸爸), mother (妈妈), brother (兄弟), sister (姐妹)
+- **外貌**: tall (高的), short (矮的), kind (和蔼的), smart (聪明的)
+- **职业**: teacher (老师), doctor (医生), worker (工人)
+
+## ✍️ 写作结构
+1. **开头**: 介绍你的家庭
+   - There are... people in my family.
+   - I have a... family.
+
+2. **中间**: 描述每个家人
+   - My father is...
+   - He works as a...
+   - My mother likes to...
+
+3. **结尾**: 表达家庭的爱
+   - I love my family.
+   - We are happy together.
+
+## 📖 范文示例
+There are four people in my family. My father is a teacher. He is tall and kind. My mother is a doctor. She works in a hospital. I have a little sister. She is five years old. We play together every day. My family is warm and happy. I love them very much.
+
+## 🎮 写作练习
+1. 画一张家庭树
+2. 写3句描述家人的话
+3. 写一篇关于家庭的短文
+
+## 🏆 评价标准
+✅ 家庭成员介绍完整（15分）
+✅ 描述准确生动（15分）
+✅ 情感表达真实（10分）
+            """,
+            'content_en': """
+# 👨‍👩‍👧‍👦 My Family - Writing Lesson
+
+## 📝 Learning Objectives
+1. Learn family member names
+2. Describe family appearance and personality
+3. Express love for family
+
+## 🎯 Key Vocabulary
+- **Family**: father, mother, brother, sister
+- **Appearance**: tall, short, kind, smart
+- **Jobs**: teacher, doctor, worker
+
+## ✍️ Writing Structure
+1. **Introduction**: Introduce your family
+   - There are... people in my family.
+   - I have a... family.
+
+2. **Body**: Describe each family member
+   - My father is...
+   - He works as a...
+   - My mother likes to...
+
+3. **Conclusion**: Express family love
+   - I love my family.
+   - We are happy together.
+
+## 📖 Example
+There are four people in my family. My father is a teacher. He is tall and kind. My mother is a doctor. She works in a hospital. I have a little sister. She is five years old. We play together every day. My family is warm and happy. I love them very much.
+
+## 🎮 Writing Practice
+1. Draw a family tree
+2. Write 3 sentences about family
+3. Write a paragraph about your family
+
+## 🏆 Evaluation Criteria
+✅ Complete family introduction (15 points)
+✅ Accurate descriptions (15 points)
+✅ Genuine emotional expression (10 points)
+            """
+        },
+        'school': {
+            'title_cn': '我的学校生活',
+            'title_en': 'My School Life',
+            'content_cn': """
+# 🏫 我的学校生活 - 写作教案
+
+## 📝 学习目标
+1. 学习学校设施和科目的名称
+2. 描述日常学校活动
+3. 表达对学校生活的感受
+
+## 🎯 重点词汇
+- **科目**: English (英语), Math (数学), Chinese (语文), Art (美术)
+- **场所**: classroom (教室), library (图书馆), playground (操场)
+- **活动**: study (学习), read (阅读), play (玩耍)
+
+## ✍️ 写作结构
+1. **开头**: 介绍你的学校
+   - My school is...
+   - There are... in my school.
+
+2. **中间**: 描述学校生活
+   - I study... subjects.
+   - My favorite subject is...
+   - After class, I...
+
+3. **结尾**: 表达感受
+   - I like my school.
+   - School life is interesting.
+
+## 📖 范文示例
+My school is big and beautiful. There are many classrooms and a big playground. I study English, Math, and Chinese. My favorite subject is English. I like my English teacher. She is very kind. After class, I play football with my friends. I love my school life. It is happy and interesting.
+
+## 🎮 写作练习
+1. 画出你最喜欢的教室
+2. 列出5个学校里的物品
+3. 写一篇学校生活日记
+
+## 🏆 评价标准
+✅ 学校描述详细（15分）
+✅ 科目活动介绍清楚（15分）
+✅ 感受表达真实（10分）
+            """,
+            'content_en': """
+# 🏫 My School Life - Writing Lesson
+
+## 📝 Learning Objectives
+1. Learn school facilities and subjects
+2. Describe daily school activities
+3. Express feelings about school life
+
+## 🎯 Key Vocabulary
+- **Subjects**: English, Math, Chinese, Art
+- **Places**: classroom, library, playground
+- **Activities**: study, read, play
+
+## ✍️ Writing Structure
+1. **Introduction**: Introduce your school
+   - My school is...
+   - There are... in my school.
+
+2. **Body**: Describe school life
+   - I study... subjects.
+   - My favorite subject is...
+   - After class, I...
+
+3. **Conclusion**: Express feelings
+   - I like my school.
+   - School life is interesting.
+
+## 📖 Example
+My school is big and beautiful. There are many classrooms and a big playground. I study English, Math, and Chinese. My favorite subject is English. I like my English teacher. She is very kind. After class, I play football with my friends. I love my school life. It is happy and interesting.
+
+## 🎮 Writing Practice
+1. Draw your favorite classroom
+2. List 5 things in school
+3. Write a diary about school life
+
+## 🏆 Evaluation Criteria
+✅ Detailed school description (15 points)
+✅ Clear subject introduction (15 points)
+✅ Genuine feelings expression (10 points)
+            """
+        }
+    }
+    
+    VOCABULARY_LIBRARY = {
+        'PEP': [
+            {'word': 'apple', 'cn': '苹果', 'grade': '3', 'theme': 'food', 'sentence': 'I eat an apple every day.'},
+            {'word': 'book', 'cn': '书', 'grade': '3', 'theme': 'school', 'sentence': 'This is my English book.'},
+            {'word': 'cat', 'cn': '猫', 'grade': '3', 'theme': 'animals', 'sentence': 'The cat is sleeping.'},
+            {'word': 'dog', 'cn': '狗', 'grade': '3', 'theme': 'animals', 'sentence': 'I have a small dog.'},
+        ],
+        '外研版': [
+            {'word': 'school', 'cn': '学校', 'grade': '4', 'theme': 'school', 'sentence': 'My school is very big.'},
+            {'word': 'teacher', 'cn': '老师', 'grade': '4', 'theme': 'people', 'sentence': 'Our teacher is very kind.'},
+            {'word': 'friend', 'cn': '朋友', 'grade': '4', 'theme': 'people', 'sentence': 'She is my best friend.'},
+        ]
+    }
+    
+    @staticmethod
+    def generate_writing_lesson(topic, grade, language='en'):
+        """生成写作教案"""
+        if topic in EnglishContentLibrary.WRITING_LESSONS:
+            lesson = EnglishContentLibrary.WRITING_LESSONS[topic]
+            return lesson[f'content_{language}']
+        
+        # 如果没有匹配的主题，生成通用教案
+        templates = {
+            'cn': f"""
+# ✨ 创意写作教案
+
+## 📝 学习目标
+1. 学习围绕"{topic}"主题进行写作
+2. 掌握相关词汇和表达
+3. 培养想象力和创造力
+
+## 🎯 重点词汇
+根据"{topic}"主题，学习相关词汇
+
+## ✍️ 写作指导
+1. **头脑风暴**: 列出与"{topic}"相关的词语
+2. **结构规划**: 
+   - 开头：引入主题
+   - 中间：详细描述
+   - 结尾：总结感受
+3. **润色修改**: 检查语法，添加细节
+
+## 📖 写作提示
+1. 如果我是{topic}，我会...
+2. 描述一次与{topic}相关的经历
+3. 创作一个关于{topic}的小故事
+
+## 🎮 创意活动
+1. 画出你心中的{topic}
+2. 制作词汇卡片
+3. 小组分享你的作品
+
+## 🏆 评价标准
+✅ 内容相关度（15分）
+✅ 语言准确性（15分）
+✅ 创意表达（20分）
+            """,
+            'en': f"""
+# ✨ Creative Writing Lesson
+
+## 📝 Learning Objectives
+1. Learn to write about "{topic}"
+2. Master related vocabulary and expressions
+3. Develop imagination and creativity
+
+## 🎯 Key Vocabulary
+Learn words related to "{topic}"
+
+## ✍️ Writing Guidance
+1. **Brainstorming**: List words related to "{topic}"
+2. **Structure Planning**:
+   - Introduction: Start with the topic
+   - Body: Detailed description
+   - Conclusion: Summary and feelings
+3. **Polishing**: Check grammar, add details
+
+## 📖 Writing Prompts
+1. If I were {topic}, I would...
+2. Describe an experience related to {topic}
+3. Create a short story about {topic}
+
+## 🎮 Creative Activities
+1. Draw your idea of {topic}
+2. Make vocabulary cards
+3. Share your work in groups
+
+## 🏆 Evaluation Criteria
+✅ Relevance to topic (15 points)
+✅ Language accuracy (15 points)
+✅ Creative expression (20 points)
+            """
+        }
+        return templates.get(language, templates['en'])
+
+# ==================== 侧边栏 ====================
 with st.sidebar:
     # Logo区域
     st.markdown("""
-    <div style="text-align: center; padding: 25px 0; border-bottom: 1px solid rgba(255,255,255,0.2);">
-        <div style="font-size: 2.5em; margin-bottom: 10px;">✏️📚🎨</div>
-        <h1 style="color: white; margin: 0; font-size: 1.8em;">英思织网</h1>
-        <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 0.9em;">
-            <span class="emoji-deco">🌈</span> AI写作魔法学院 <span class="emoji-deco">✨</span>
+    <div class="sidebar-header">
+        <div style="font-size: 2.5em; margin-bottom: 10px;">🎨✨</div>
+        <h1 style="color: white; margin: 0; font-size: 1.6em;">英思织网</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 5px 0; font-size: 0.9em;">
+            AI写作魔法学院
         </p>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # API设置 - 彩虹卡片
-    with st.expander("🔮 **魔法钥匙设置**", expanded=True):
-        api_key = st.text_input(
-            "DeepSeek API密钥",
-            type="password",
-            value=st.session_state.api_key,
-            placeholder="输入你的魔法钥匙...",
-            help="获取地址: https://platform.deepseek.com"
-        )
-        st.session_state.api_key = api_key
-        
-        col_test, col_clear = st.columns(2)
-        with col_test:
-            if st.button("🔗 测试连接", use_container_width=True):
-                if api_key:
-                    with st.spinner("施展连接魔法..."):
-                        response, error = call_deepseek_api("请回复：魔法连接成功！", max_tokens=20)
-                        if error:
-                            st.error("😢 连接失败")
-                        elif response and ("成功" in response or "魔法" in response):
-                            st.success("🎉 连接成功！")
-                        else:
-                            st.warning("🤔 连接有点奇怪...")
-                else:
-                    st.warning("🔑 请先输入魔法钥匙")
-        
-        with col_clear:
-            if st.button("🔄 重置", use_container_width=True):
-                st.session_state.api_key = ''
-                st.rerun()
-    
-    st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-    
-    # 彩虹导航菜单
-    st.markdown("### 📖 **魔法学院导航**")
-    
-    nav_options = [
-        {"id": "home", "label": "🏠 魔法学院大厅", "emoji": "🏠", "color": "#FF6B6B"},
-        {"id": "writing", "label": "🤖 写作魔法师", "emoji": "🤖", "color": "#FFD166"},
-        {"id": "evaluation", "label": "📝 作文评价官", "emoji": "📝", "color": "#06D6A0"},
-        {"id": "chat", "label": "💬 智慧导师", "emoji": "💬", "color": "#118AB2"},
-        {"id": "vocab", "label": "🔤 词汇魔法书", "emoji": "🔤", "color": "#7209B7"},
-        {"id": "stats", "label": "📊 魔法记录", "emoji": "📊", "color": "#0D9488"},
-        {"id": "settings", "label": "⚙️ 学院设置", "emoji": "⚙️", "color": "#4A5568"}
-    ]
-    
-    for option in nav_options:
-        is_active = st.session_state.current_page == option["id"]
-        btn_class = "nav-btn active" if is_active else "nav-btn"
-        
-        if st.button(
-            f"{option['emoji']} {option['label']}",
-            key=f"nav_{option['id']}",
-            use_container_width=True
-        ):
-            st.session_state.current_page = option["id"]
+    # 语言切换
+    st.markdown("### 🌐 语言设置")
+    lang_col1, lang_col2 = st.columns(2)
+    with lang_col1:
+        if st.button("🇨🇳 中文", use_container_width=True, key="lang_cn"):
+            st.session_state.language = 'cn'
             st.rerun()
-    
-    st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-    
-    # 快捷魔法
-    st.markdown("### ⚡ **快捷魔法**")
-    
-    quick_col1, quick_col2 = st.columns(2)
-    with quick_col1:
-        if st.button("✨ 刷新", use_container_width=True):
+    with lang_col2:
+        if st.button("🇬🇧 English", use_container_width=True, key="lang_en"):
+            st.session_state.language = 'en'
             st.rerun()
-    with quick_col2:
-        if st.button("📖 历史", use_container_width=True):
-            st.session_state.current_page = "stats"
-    
-    # 魔法状态
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.session_state.api_key:
-        st.markdown('<span class="fun-badge badge-success">✅ 魔法钥匙已激活</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="fun-badge badge-warning">🔑 需要魔法钥匙</span>', unsafe_allow_html=True)
-
-# ======================== 页面内容 ========================
-# 魔法学院大厅（首页）
-if st.session_state.current_page == 'home':
-    st.markdown("<h1 class='main-title'>🎨 英思织网魔法写作学院</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">🌈 用AI魔法点亮写作天赋，让每个孩子成为小小作家！</p>', unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div style="text-align: center; margin-bottom: 30px;">
-        <span class="fun-badge badge-purple">✨ 今日魔法能量: 100%</span>
-        <span class="fun-badge badge-info">📅 {datetime.now().strftime('%Y年%m月%d日')}</span>
-        <span class="fun-badge badge-success">🎯 {datetime.now().strftime('%H:%M:%S')}</span>
+    <div style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+        <span style="color: white;">当前语言: </span>
+        <span style="color: #FFD93D; font-weight: bold;">
+            {'中文' if st.session_state.language == 'cn' else 'English'}
+        </span>
     </div>
     """, unsafe_allow_html=True)
     
-    # 功能展示区
-    st.markdown("### 🎪 **魔法学院六大法宝**")
+    st.markdown("<hr style='border-color: rgba(255,255,255,0.2)'>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    # 导航菜单
+    st.markdown("### 📚 魔法导航")
     
-    with col1:
-        # 卡片1: 写作魔法师
-        st.markdown("""
-        <div class="fun-card card-orange">
-            <div class="card-icon">🤖</div>
-            <div class="card-title">
-                <span style="color: #FFD166;">🤖</span> 写作魔法师
-            </div>
-            <div class="card-desc">
-                智能生成各种题材的写作教案和范文，让写作变得像玩游戏一样有趣！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 卡片2: 作文评价官
-        st.markdown("""
-        <div class="fun-card card-green">
-            <div class="card-icon">📝</div>
-            <div class="card-title">
-                <span style="color: #06D6A0;">📝</span> 作文评价官
-            </div>
-            <div class="card-desc">
-                智能评价作文，提供具体的改进建议，帮助小作家们快速进步！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 卡片3: 词汇魔法书
-        st.markdown("""
-        <div class="fun-card card-purple">
-            <div class="card-icon">🔤</div>
-            <div class="card-title">
-                <span style="color: #7209B7;">🔤</span> 词汇魔法书
-            </div>
-            <div class="card-desc">
-                丰富的词汇扩展工具，让语言表达更加生动有趣！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        # 卡片4: 智慧导师
-        st.markdown("""
-        <div class="fun-card card-blue">
-            <div class="card-icon">💬</div>
-            <div class="card-title">
-                <span style="color: #118AB2;">💬</span> 智慧导师
-            </div>
-            <div class="card-desc">
-                24小时在线的AI写作导师，随时解答写作问题！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 卡片5: 魔法记录
-        st.markdown("""
-        <div class="fun-card card-teal">
-            <div class="card-icon">📊</div>
-            <div class="card-title">
-                <span style="color: #0D9488;">📊</span> 魔法记录
-            </div>
-            <div class="card-desc">
-                记录每次写作的进步，见证小作家的成长历程！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 卡片6: 学院设置
-        st.markdown("""
-        <div class="fun-card" style="border-color: #4A5568; background: linear-gradient(135deg, #f7fafc, #fff);">
-            <div class="card-icon">⚙️</div>
-            <div class="card-title">
-                <span style="color: #4A5568;">⚙️</span> 学院设置
-            </div>
-            <div class="card-desc">
-                个性化设置你的魔法学院，打造专属的写作空间！
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 快速开始区
-    st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-    st.markdown("### 🚀 **立即开始魔法写作之旅**")
-    
-    start_col1, start_col2, start_col3 = st.columns(3)
-    
-    with start_col1:
-        if st.button("🎨 **开始写作**", use_container_width=True):
-            st.session_state.current_page = "writing"
-            st.rerun()
-        st.caption("生成有趣的写作教案")
-    
-    with start_col2:
-        if st.button("🔍 **评价作文**", use_container_width=True):
-            st.session_state.current_page = "evaluation"
-            st.rerun()
-        st.caption("获取专业的写作反馈")
-    
-    with start_col3:
-        if st.button("💬 **咨询导师**", use_container_width=True):
-            st.session_state.current_page = "chat"
-            st.rerun()
-        st.caption("随时解答写作疑问")
-
-# 写作魔法师页面
-elif st.session_state.current_page == 'writing':
-    st.markdown("<h1 class='main-title'>🤖 写作魔法师工作室</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">✨ 选择主题，施展写作魔法，生成精彩的写作教案！</p>', unsafe_allow_html=True)
-    
-    with st.container():
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # 彩虹标签页选择写作类型
-            writing_type = st.selectbox(
-                "📚 **选择写作类型**",
-                ["童话故事", "校园日记", "想象作文", "观察日记", "读后感", "议论文", "说明文", "应用文"],
-                help="选择你喜欢的写作类型"
-            )
-            
-            # 创意输入框
-            topic = st.text_area(
-                "🎯 **写作主题或要求**",
-                height=120,
-                placeholder="例如：写一个关于勇敢小猫咪的童话故事...\n或者：描述你最喜欢的季节...",
-                help="发挥你的想象力，描述你想写的内容"
-            )
-            
-            # 可爱的高级选项
-            with st.expander("🎨 **魔法设置**", expanded=True):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    grade = st.select_slider(
-                        "👦 **适合年级**",
-                        options=["一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "初中", "高中"]
-                    )
-                    
-                    style = st.selectbox(
-                        "✏️ **写作风格**",
-                        ["活泼有趣", "生动形象", "简洁明了", "优美动人", "幽默风趣"]
-                    )
-                
-                with col_b:
-                    length = st.select_slider(
-                        "📏 **内容长度**",
-                        options=["短小精悍", "适中标准", "详细丰富", "非常详细"]
-                    )
-                    
-                    include_items = st.multiselect(
-                        "📋 **包含内容**",
-                        ["魔法范文", "写作技巧", "词语宝库", "结构指导", "修改建议", "评价标准"],
-                        default=["魔法范文", "写作技巧", "词语宝库"]
-                    )
-        
-        with col2:
-            st.markdown("#### 🎪 **魔法道具**")
-            
-            # 可爱的滑块和选择器
-            creativity = st.slider(
-                "✨ **创意指数**",
-                0, 100, 70,
-                help="控制AI的创意程度"
-            )
-            
-            difficulty = st.select_slider(
-                "🎓 **难度等级**",
-                options=["简单", "普通", "挑战", "困难", "专家"]
-            )
-            
-            st.markdown("---")
-            
-            # 生成按钮
-            generate_col1, generate_col2 = st.columns([3, 1])
-            with generate_col1:
-                if st.button("🔮 **施展写作魔法**", type="primary", use_container_width=True):
-                    if not st.session_state.api_key:
-                        st.error("🔑 请先在侧边栏输入魔法钥匙（API密钥）")
-                    elif not topic:
-                        st.warning("🎯 请输入写作主题")
-                    else:
-                        with st.spinner("🧙‍♂️ 魔法师正在创作中..."):
-                            # 构建提示词
-                            prompt = f"""请为{grade}学生创作一份关于"{topic}"的{writing_type}写作教案。
-
-要求：
-- 写作风格：{style}
-- 内容长度：{length}
-- 难度等级：{difficulty}
-- 创意程度：{creativity}%
-- 包含内容：{', '.join(include_items)}
-
-请用生动有趣的语言，让写作变得像游戏一样好玩！"""
-                            
-                            system_msg = "你是一位充满童心和创造力的写作魔法师，善于用生动的语言和有趣的方式教孩子们写作。"
-                            
-                            response, error = call_deepseek_api(
-                                prompt=prompt,
-                                system_message=system_msg,
-                                max_tokens=2500,
-                                temperature=creativity/100
-                            )
-                            
-                            if error:
-                                st.error(f"😢 魔法失败: {error}")
-                            elif response:
-                                # 保存到历史
-                                st.session_state.history.append({
-                                    "type": "写作魔法",
-                                    "time": datetime.now().strftime("%H:%M:%S"),
-                                    "topic": topic[:50]
-                                })
-                                
-                                # 显示结果
-                                st.markdown("### 📜 **魔法写作教案**")
-                                st.markdown(f'<div class="bubble-box">{response}</div>', unsafe_allow_html=True)
-                                
-                                # 操作按钮
-                                st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-                                
-                                btn_col1, btn_col2, btn_col3 = st.columns(3)
-                                with btn_col1:
-                                    st.download_button(
-                                        label="📥 下载魔法书",
-                                        data=response,
-                                        file_name=f"魔法写作教案_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                                        mime="text/plain",
-                                        use_container_width=True
-                                    )
-                                with btn_col2:
-                                    if st.button("🔄 重新施展", use_container_width=True):
-                                        st.rerun()
-                                with btn_col3:
-                                    if st.button("🎨 换主题", use_container_width=True):
-                                        st.session_state.current_page = "writing"
-                                        st.rerun()
-            with generate_col2:
-                if st.button("🎲 随机主题", use_container_width=True):
-                    random_topics = [
-                        "会说话的玩具",
-                        "魔法森林冒险",
-                        "未来的学校",
-                        "我的梦想职业",
-                        "如果我会飞"
-                    ]
-                    import random
-                    st.session_state.random_topic = random.choice(random_topics)
-                    st.rerun()
-
-# 作文评价官页面
-elif st.session_state.current_page == 'evaluation':
-    st.markdown("<h1 class='main-title'>📝 作文评价官工作室</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">🔍 粘贴作文，获取专业又有趣的写作反馈！</p>', unsafe_allow_html=True)
-    
-    # 作文输入区
-    essay = st.text_area(
-        "📖 **请粘贴学生作文**",
-        height=300,
-        placeholder="在这里粘贴学生的作文...\n\n例如：\n今天天气真好，我和小明一起去公园玩。我们看到了美丽的花朵...",
-        help="可以直接复制粘贴整篇作文"
-    )
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 📊 **评价标准**")
-        
-        criteria = st.multiselect(
-            "选择评价维度",
-            ["内容创意", "结构组织", "语言表达", "语法规范", "情感表达", "想象力", "逻辑性"],
-            default=["内容创意", "结构组织", "语言表达"],
-            label_visibility="collapsed"
-        )
-        
-        feedback_style = st.selectbox(
-            "💬 **反馈风格**",
-            ["鼓励式（发现闪光点）", "专业式（详细分析）", "趣味式（轻松活泼）", "成长式（进步建议）"]
-        )
-    
-    with col2:
-        st.markdown("#### 🎯 **评分选项**")
-        
-        show_stars = st.checkbox("⭐ 显示星级评价", value=True)
-        if show_stars:
-            star_system = st.radio(
-                "评分体系",
-                ["五星制", "十分制", "ABCD等级", "表情评价"]
-            )
-        
-        include_suggestions = st.checkbox("💡 提供改进建议", value=True)
-        include_examples = st.checkbox("✏️ 提供修改示例", value=True)
-    
-    # 评价按钮
-    if st.button("🔍 **开始评价作文**", type="primary", use_container_width=True):
-        if not st.session_state.api_key:
-            st.error("🔑 请先在侧边栏输入魔法钥匙（API密钥）")
-        elif not essay:
-            st.warning("📝 请输入要评价的作文")
-        else:
-            with st.spinner("🧐 评价官正在认真阅读..."):
-                # 构建提示词
-                prompt = f"""请评价以下作文：
-
-作文内容：
-{essay}
-
-评价要求：
-- 评价维度：{', '.join(criteria)}
-- 反馈风格：{feedback_style}
-- {"显示" + star_system + "评分" if show_stars else "不显示分数"}
-- {"提供具体的改进建议" if include_suggestions else ""}
-- {"提供修改示例" if include_examples else ""}
-
-请用专业又亲切的语言进行评价，既要指出优点，也要提供建设性的改进意见。"""
-                
-                system_msg = "你是一位专业又亲切的作文评价官，善于发现学生作文的闪光点，并用建设性的方式提供改进建议。"
-                
-                response, error = call_deepseek_api(prompt, system_message=system_msg, max_tokens=2500)
-                
-                if error:
-                    st.error(f"😢 评价失败: {error}")
-                elif response:
-                    st.markdown("### 📋 **作文评价报告**")
-                    st.markdown(f'<div class="bubble-box">{response}</div>', unsafe_allow_html=True)
-
-# 智慧导师页面（交互指导）
-elif st.session_state.current_page == 'chat':
-    st.markdown("<h1 class='main-title'>💬 智慧导师聊天室</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">🤔 有什么写作问题？随时问我！</p>', unsafe_allow_html=True)
-    
-    # 初始化聊天历史
-    if 'tutor_messages' not in st.session_state:
-        st.session_state.tutor_messages = [
-            {"role": "assistant", "content": "👋 你好！我是你的AI写作导师——智慧博士！\n\n🎯 我可以帮助你：\n• 解答写作疑问\n• 提供写作技巧\n• 指导作文修改\n• 分析文章结构\n• 推荐好词好句\n\n💡 例如，你可以问我：\n• '如何写好作文开头？'\n• '怎样描写人物外貌？'\n• '议论文怎么写？'\n• '帮我看看这段文字怎么修改？'\n\n✨ 现在，告诉我你有什么写作问题吧！"}
-        ]
-    
-    # 显示聊天记录
-    chat_container = st.container()
-    with chat_container:
-        for message in st.session_state.tutor_messages:
-            if message["role"] == "assistant":
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #e3f2fd, #f3e5f5); 
-                          padding: 20px; border-radius: 20px; margin: 10px 0 10px 0;
-                          border: 2px solid #bbdefb;">
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <div style="background: linear-gradient(135deg, #667eea, #764ba2); 
-                                  color: white; padding: 8px 15px; border-radius: 15px;
-                                  font-weight: bold; margin-right: 10px;">
-                            🤖 智慧博士
-                        </div>
-                        <span style="color: #666; font-size: 0.9em;">正在为你解答...</span>
-                    </div>
-                    <div style="font-size: 1em; line-height: 1.6;">
-                        {message['content'].replace('\n', '<br>')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #fff3e0, #ffecb3); 
-                          padding: 20px; border-radius: 20px; margin: 10px 0 10px auto;
-                          border: 2px solid #ffd54f; max-width: 80%;">
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <div style="background: linear-gradient(135deg, #FF6B6B, #FF8E53); 
-                                  color: white; padding: 8px 15px; border-radius: 15px;
-                                  font-weight: bold; margin-right: 10px;">
-                            👤 你
-                        </div>
-                    </div>
-                    <div style="font-size: 1em; line-height: 1.6;">
-                        {message['content'].replace('\n', '<br>')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-    
-    # 聊天输入
-    if prompt := st.chat_input("💭 输入你的写作问题..."):
-        if not st.session_state.api_key:
-            st.error("🔑 请先在侧边栏输入魔法钥匙（API密钥）")
-        else:
-            # 添加用户消息
-            st.session_state.tutor_messages.append({"role": "user", "content": prompt})
-            st.rerun()
-            
-            # 获取AI回复
-            with st.spinner("🤔 智慧博士正在思考..."):
-                response, error = call_deepseek_api(
-                    prompt=prompt,
-                    system_message="你是一位智慧又亲切的写作导师，善于用生动有趣的方式解答写作问题，引导学生思考。",
-                    max_tokens=1500,
-                    temperature=0.8
-                )
-                
-                if error:
-                    st.error(f"😢 对话失败: {error}")
-                elif response:
-                    st.session_state.tutor_messages.append({"role": "assistant", "content": response})
-                    st.rerun()
-    
-    # 快捷问题按钮
-    st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-    st.markdown("#### 💡 **常见写作问题**")
-    
-    questions = [
-        "如何写好作文开头？",
-        "怎样让作文更生动？",
-        "写人作文怎么写？",
-        "写景作文的技巧？",
-        "如何修改作文？"
+    nav_items = [
+        {"id": "home", "emoji": "🏠", "label_cn": "魔法学院", "label_en": "Magic Academy"},
+        {"id": "writing", "emoji": "✏️", "label_cn": "写作工坊", "label_en": "Writing Workshop"},
+        {"id": "vocabulary", "emoji": "📖", "label_cn": "词汇魔法", "label_en": "Vocabulary Magic"},
+        {"id": "evaluate", "emoji": "⭐", "label_cn": "作品评价", "label_en": "Evaluation"},
+        {"id": "games", "emoji": "🎮", "label_cn": "游戏乐园", "label_en": "Game Park"},
+        {"id": "progress", "emoji": "📊", "label_cn": "成长记录", "label_en": "Progress"}
     ]
     
-    cols = st.columns(5)
-    for idx, question in enumerate(questions):
-        with cols[idx]:
-            if st.button(question, use_container_width=True):
-                st.session_state.tutor_messages.append({"role": "user", "content": question})
-                st.rerun()
-
-# 词汇魔法书页面
-elif st.session_state.current_page == 'vocab':
-    st.markdown("<h1 class='main-title'>🔤 词汇魔法书房</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">📚 丰富的词汇宝库，让语言表达更精彩！</p>', unsafe_allow_html=True)
-    
-    tab1, tab2, tab3 = st.tabs(["🔍 词汇搜索", "🎨 主题词汇", "✨ 词汇游戏"])
-    
-    with tab1:
-        st.markdown("#### 🎯 **词汇扩展工具**")
+    for item in nav_items:
+        label = item[f"label_{st.session_state.language}"]
+        is_active = st.session_state.page == item["id"]
         
-        word = st.text_input(
-            "输入关键词",
-            placeholder="例如：美丽、快乐、奔跑、思考...",
-            help="输入你想扩展的词汇"
-        )
-        
-        if word:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                expand_types = st.multiselect(
-                    "扩展类型",
-                    ["同义词", "反义词", "高级词汇", "成语俗语", "短语搭配", "词语辨析"],
-                    default=["同义词", "高级词汇", "短语搭配"]
-                )
-                
-                grade_level = st.select_slider(
-                    "适合年级",
-                    options=["低年级", "中年级", "高年级", "初中", "高中", "通用"]
-                )
-            
-            with col2:
-                output_format = st.radio(
-                    "展示方式",
-                    ["卡片式", "列表式", "表格式", "图文式"]
-                )
-                
-                include_examples = st.checkbox("包含例句", value=True)
-            
-            if st.button("🔮 **施展词汇魔法**", type="primary", use_container_width=True):
-                if not st.session_state.api_key:
-                    st.error("🔑 请先在侧边栏输入魔法钥匙（API密钥）")
-                else:
-                    with st.spinner("📖 正在翻阅词汇魔法书..."):
-                        prompt = f"""请为词汇"{word}"提供扩展内容：
-
-扩展类型：{', '.join(expand_types)}
-适合年级：{grade_level}
-展示方式：{output_format}
-{"包含生动例句" if include_examples else ""}
-
-请用有趣的方式呈现，帮助学生学习记忆。"""
-                        
-                        response, error = call_deepseek_api(prompt, max_tokens=2000)
-                        
-                        if error:
-                            st.error(f"😢 词汇扩展失败: {error}")
-                        else:
-                            st.markdown("### 📖 **词汇魔法书**")
-                            st.markdown(f'<div class="bubble-box">{response}</div>', unsafe_allow_html=True)
+        if st.button(
+            f"{item['emoji']} {label}",
+            key=f"nav_{item['id']}",
+            use_container_width=True,
+            type="primary" if is_active else "secondary"
+        ):
+            st.session_state.page = item["id"]
+            st.rerun()
     
-    with tab2:
-        st.markdown("#### 🎨 **主题词汇库**")
-        
-        themes = ["季节天气", "动物植物", "人物描写", "心情情感", "学校生活", "家庭亲情", "自然风光", "科技未来"]
-        selected_theme = st.selectbox("选择主题", themes)
-        
-        if selected_theme and st.button("生成主题词汇", use_container_width=True):
-            if not st.session_state.api_key:
-                st.error("🔑 请先在侧边栏输入魔法钥匙（API密钥）")
-            else:
-                with st.spinner("🎨 正在绘制主题词汇图..."):
-                    prompt = f"""请为"{selected_theme}"主题提供丰富的词汇资源：
-1. 核心词汇（10-15个）
-2. 精彩短语（8-10个）
-3. 优美句子（5-8句）
-4. 写作小贴士（3-5条）
-
-请用生动有趣的方式呈现。"""
-                    
-                    response, error = call_deepseek_api(prompt)
-                    
-                    if error:
-                        st.error(f"😢 生成失败: {error}")
-                    else:
-                        st.markdown(f'<div class="bubble-box">{response}</div>', unsafe_allow_html=True)
-
-# 魔法记录页面（使用统计）
-elif st.session_state.current_page == 'stats':
-    st.markdown("<h1 class='main-title'>📊 魔法成长记录册</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">🌟 记录每一次写作的进步与成长！</p>', unsafe_allow_html=True)
+    st.markdown("<hr style='border-color: rgba(255,255,255,0.2)'>", unsafe_allow_html=True)
     
-    # 统计卡片
-    col1, col2, col3, col4 = st.columns(4)
+    # 快速工具
+    st.markdown("### ⚡ 快速工具")
+    quick_col1, quick_col2 = st.columns(2)
+    with quick_col1:
+        if st.button("🔄 刷新", use_container_width=True):
+            st.rerun()
+    with quick_col2:
+        if st.button("📝 笔记", use_container_width=True):
+            st.session_state.page = "writing"
+            st.rerun()
+    
+    # 状态显示
+    st.markdown("### ✨ 系统状态")
+    st.success("✅ 系统已就绪")
+    st.info(f"📚 已加载 {len(EnglishContentLibrary.WRITING_LESSONS)} 个教案")
+    st.info(f"🔤 词汇库: {sum(len(v) for v in EnglishContentLibrary.VOCABULARY_LIBRARY.values())} 个单词")
+
+# ==================== 主页面 ====================
+# 首页
+if st.session_state.page == 'home':
+    # 标题区域
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">🎨 英思织网 AI写作魔法学院</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">✨</span>
+            <span class="icon-bounce">🎨</span>
+            <span class="icon-bounce">✏️</span>
+            <span class="icon-bounce">📚</span>
+            <span class="icon-bounce">⭐</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    subtitle = "让每个孩子爱上英语写作！" if st.session_state.language == 'cn' else "Make every child love English writing!"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 功能展示区
+    st.markdown("## 🎪 六大魔法功能" if st.session_state.language == 'cn' else "## 🎪 Six Magic Features")
+    
+    # 第一行功能卡片
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("""
-        <div class="fun-card card-red">
-            <div class="card-title">🎯 总使用次数</div>
-            <div style="font-size: 2.5em; font-weight: bold; color: #FF6B6B; text-align: center;">
-                128
-            </div>
-            <div style="color: #718096; text-align: center;">次魔法体验</div>
+        st.markdown(f"""
+        <div class="feature-card card-orange">
+            <div class="card-icon">✏️</div>
+            <h3 class="card-title">{
+                '智能写作助手' if st.session_state.language == 'cn' else 'Smart Writing Assistant'
+            }</h3>
+            <p class="card-desc">{
+                'AI生成创意写作教案，激发孩子的写作兴趣' if st.session_state.language == 'cn' 
+                else 'AI generates creative writing lessons to inspire children'
+            }</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
-        <div class="fun-card card-orange">
-            <div class="card-title">📝 作文生成</div>
-            <div style="font-size: 2.5em; font-weight: bold; color: #FFD166; text-align: center;">
-                64
-            </div>
-            <div style="color: #718096; text-align: center;">篇精彩作品</div>
+        st.markdown(f"""
+        <div class="feature-card card-green">
+            <div class="card-icon">📖</div>
+            <h3 class="card-title">{
+                '词汇魔法书' if st.session_state.language == 'cn' else 'Vocabulary Magic Book'
+            }</h3>
+            <p class="card-desc">{
+                '多版本教材词汇库，CEFR分级，智能推荐' if st.session_state.language == 'cn'
+                else 'Multi-version textbook vocabulary with CEFR levels'
+            }</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown("""
-        <div class="fun-card card-green">
-            <div class="card-title">🔍 作文评价</div>
-            <div style="font-size: 2.5em; font-weight: bold; color: #06D6A0; text-align: center;">
-                48
-            </div>
-            <div style="color: #718096; text-align: center;">次专业评价</div>
+        st.markdown(f"""
+        <div class="feature-card card-blue">
+            <div class="card-icon">⭐</div>
+            <h3 class="card-title">{
+                '智能评价系统' if st.session_state.language == 'cn' else 'Smart Evaluation'
+            }</h3>
+            <p class="card-desc">{
+                '即时作文评价，个性化改进建议' if st.session_state.language == 'cn'
+                else 'Instant essay evaluation with personalized feedback'
+            }</p>
         </div>
         """, unsafe_allow_html=True)
+    
+    # 第二行功能卡片
+    col4, col5, col6 = st.columns(3)
     
     with col4:
-        st.markdown("""
-        <div class="fun-card card-blue">
-            <div class="card-title">💬 导师对话</div>
-            <div style="font-size: 2.5em; font-weight: bold; color: #118AB2; text-align: center;">
-                96
-            </div>
-            <div style="color: #718096; text-align: center;">次智慧交流</div>
+        st.markdown(f"""
+        <div class="feature-card card-pink">
+            <div class="card-icon">🎮</div>
+            <h3 class="card-title">{
+                '写作游戏乐园' if st.session_state.language == 'cn' else 'Writing Games'
+            }</h3>
+            <p class="card-desc">{
+                '趣味写作游戏，在玩中学，在学中玩' if st.session_state.language == 'cn'
+                else 'Fun writing games, learn through play'
+            }</p>
         </div>
         """, unsafe_allow_html=True)
     
-    # 成长记录
-    st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
-    st.markdown("### 📅 **近期魔法活动**")
+    with col5:
+        st.markdown(f"""
+        <div class="feature-card card-purple">
+            <div class="card-icon">📊</div>
+            <h3 class="card-title">{
+                '成长记录册' if st.session_state.language == 'cn' else 'Progress Tracker'
+            }</h3>
+            <p class="card-desc">{
+                '记录每一次进步，见证写作成长' if st.session_state.language == 'cn'
+                else 'Track every progress, witness writing growth'
+            }</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    activities = [
-        {"time": "今天 10:30", "type": "📝", "action": "生成了童话故事", "title": "《勇敢的小猫咪》", "badge": "badge-success"},
-        {"time": "今天 09:15", "type": "🔍", "action": "评价了作文", "title": "《我的家乡》", "badge": "badge-info"},
-        {"time": "昨天 16:45", "type": "💬", "action": "咨询了写作问题", "title": "如何写好开头", "badge": "badge-purple"},
-        {"time": "昨天 14:20", "type": "🔤", "action": "学习了词汇", "title": "描写春天的词语", "badge": "badge-warning"},
-        {"time": "前天 11:10", "type": "📝", "action": "生成了观察日记", "title": "《校园的梧桐树》", "badge": "badge-success"},
-    ]
+    with col6:
+        st.markdown(f"""
+        <div class="feature-card card-teal">
+            <div class="card-icon">🏆</div>
+            <h3 class="card-title">{
+                '荣誉勋章系统' if st.session_state.language == 'cn' else 'Achievement System'
+            }</h3>
+            <p class="card-desc">{
+                '激励孩子不断挑战，获得写作勋章' if st.session_state.language == 'cn'
+                else 'Motivate children with writing achievements'
+            }</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    for activity in activities:
-        col_a, col_b, col_c = st.columns([2, 3, 2])
-        with col_a:
-            st.markdown(f"**{activity['time']}**")
-        with col_b:
-            st.markdown(f"{activity['type']} **{activity['action']}**：{activity['title']}")
-        with col_c:
-            st.markdown(f"<span class='fun-badge {activity['badge']}'>完成</span>", unsafe_allow_html=True)
-        st.markdown("---")
+    # 快速开始区
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("## 🚀 立即开始" if st.session_state.language == 'cn' else "## 🚀 Get Started Now")
+    
+    start_col1, start_col2, start_col3 = st.columns(3)
+    
+    with start_col1:
+        if st.button("✏️ 开始写作", use_container_width=True, type="primary"):
+            st.session_state.page = "writing"
+            st.rerun()
+        st.caption("生成写作教案" if st.session_state.language == 'cn' else "Generate writing lessons")
+    
+    with start_col2:
+        if st.button("📖 学习词汇", use_container_width=True, type="primary"):
+            st.session_state.page = "vocabulary"
+            st.rerun()
+        st.caption("探索词汇库" if st.session_state.language == 'cn' else "Explore vocabulary")
+    
+    with start_col3:
+        if st.button("🎮 玩转游戏", use_container_width=True, type="primary"):
+            st.session_state.page = "games"
+            st.rerun()
+        st.caption("趣味学习" if st.session_state.language == 'cn' else "Fun learning")
+    
+    # 今日推荐
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("## 🔥 今日推荐" if st.session_state.language == 'cn' else "## 🔥 Today's Recommendation")
+    
+    rec_col1, rec_col2 = st.columns(2)
+    
+    with rec_col1:
+        with st.container():
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                      padding: 25px; border-radius: 20px; color: white;">
+                <h3 style="color: white; margin-top: 0;">🌟 每周写作挑战</h3>
+                <p>主题：我的梦想职业</p>
+                <p>🏆 完成挑战赢取专属勋章！</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with rec_col2:
+        with st.container():
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #f093fb, #f5576c); 
+                      padding: 25px; border-radius: 20px; color: white;">
+                <h3 style="color: white; margin-top: 0;">📈 学习进度</h3>
+                <p>本月已帮助 128 位小作家</p>
+                <p>📚 累计生成 256 篇优秀作品</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-# 学院设置页面
-elif st.session_state.current_page == 'settings':
-    st.markdown("<h1 class='main-title'>⚙️ 魔法学院设置中心</h1>", unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">🎨 个性化设置你的写作魔法学院！</p>', unsafe_allow_html=True)
+# 写作工坊页面
+elif st.session_state.page == 'writing':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">✏️ 写作魔法工坊</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">📝</span>
+            <span class="icon-bounce">✨</span>
+            <span class="icon-bounce">🎨</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["🎛️ 学院设置", "🌈 界面主题", "📖 关于学院"])
+    subtitle = "选择主题，生成专属写作教案" if st.session_state.language == 'cn' else "Choose a topic, generate personalized writing lessons"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
     
-    with tab1:
-        st.markdown("#### 🎛️ **学院基础设置**")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            auto_save = st.checkbox("自动保存记录", value=True, help="自动保存你的写作记录")
-            max_history = st.number_input("最大记录数量", 10, 1000, 100, help="保存的历史记录数量")
+    # 主题选择区
+    st.markdown("### 🎯 选择写作主题" if st.session_state.language == 'cn' else "### 🎯 Choose Writing Topic")
+    
+    themes = list(EnglishContentLibrary.WRITING_LESSONS.keys())
+    theme_names_cn = [EnglishContentLibrary.WRITING_LESSONS[t]['title_cn'] for t in themes]
+    theme_names_en = [EnglishContentLibrary.WRITING_LESSONS[t]['title_en'] for t in themes]
+    
+    theme_cols = st.columns(3)
+    for idx, (theme, name_cn, name_en) in enumerate(zip(themes, theme_names_cn, theme_names_en)):
+        with theme_cols[idx % 3]:
+            name = name_cn if st.session_state.language == 'cn' else name_en
+            emoji = "🐶" if theme == 'animals' else "👨‍👩‍👧‍👦" if theme == 'family' else "🏫"
             
-            notification = st.checkbox("新功能提醒", value=True, help="接收新功能更新提醒")
-            
-            if st.button("🗑️ 清空所有记录", use_container_width=True):
-                st.session_state.history = []
-                st.session_state.chat_history = []
-                st.session_state.tutor_messages = []
-                st.success("✨ 所有记录已清空！")
-                time.sleep(1)
+            if st.button(
+                f"{emoji} {name}",
+                use_container_width=True,
+                type="primary" if st.session_state.current_lesson == theme else "secondary"
+            ):
+                st.session_state.current_lesson = theme
                 st.rerun()
+    
+    # 自定义主题
+    st.markdown("### 💡 自定义主题" if st.session_state.language == 'cn' else "### 💡 Custom Topic")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        custom_topic = st.text_input(
+            "输入你的写作主题" if st.session_state.language == 'cn' else "Enter your writing topic",
+            placeholder="例如：我的假期、未来的城市..." if st.session_state.language == 'cn' else "e.g., My holiday, Future city..."
+        )
+    
+    with col2:
+        grade_level = st.selectbox(
+            "年级" if st.session_state.language == 'cn' else "Grade Level",
+            ["Grade 1-2", "Grade 3-4", "Grade 5-6", "Grade 7-8"]
+        )
+    
+    # 写作设置
+    with st.expander("⚙️ 写作设置" if st.session_state.language == 'cn' else "⚙️ Writing Settings", expanded=True):
+        col_set1, col_set2 = st.columns(2)
         
-        with col2:
-            default_model = st.selectbox(
-                "默认魔法模型",
-                ["DeepSeek魔法师", "写作精灵", "创意大师", "专业导师"]
+        with col_set1:
+            writing_type = st.selectbox(
+                "写作类型" if st.session_state.language == 'cn' else "Writing Type",
+                ["记叙文", "说明文", "议论文", "日记", "书信"] if st.session_state.language == 'cn'
+                else ["Narrative", "Descriptive", "Argumentative", "Diary", "Letter"]
             )
             
-            timeout = st.slider("魔法响应时间", 10, 120, 30, help="等待AI响应的时间")
+            difficulty = st.select_slider(
+                "难度等级" if st.session_state.language == 'cn' else "Difficulty Level",
+                options=["简单", "中等", "挑战"] if st.session_state.language == 'cn'
+                else ["Easy", "Medium", "Challenging"]
+            )
+        
+        with col_set2:
+            length = st.select_slider(
+                "内容长度" if st.session_state.language == 'cn' else "Content Length",
+                options=["简短", "适中", "详细"] if st.session_state.language == 'cn'
+                else ["Short", "Medium", "Detailed"]
+            )
             
-            if st.button("💾 保存设置", type="primary", use_container_width=True):
-                st.success("✅ 学院设置已保存！")
-                st.balloons()
+            creativity = st.slider(
+                "创意指数" if st.session_state.language == 'cn' else "Creativity Level",
+                0, 100, 70
+            )
+    
+    # 生成按钮
+    if st.button("✨ 生成写作教案" if st.session_state.language == 'cn' else "✨ Generate Writing Lesson", 
+                type="primary", use_container_width=True):
+        
+        if st.session_state.current_lesson or custom_topic:
+            topic = st.session_state.current_lesson if st.session_state.current_lesson else custom_topic
+            
+            with st.spinner("🧙‍♂️ 魔法师正在创作中..." if st.session_state.language == 'cn' else "🧙‍♂️ Creating magic..."):
+                # 生成教案
+                lesson_content = EnglishContentLibrary.generate_writing_lesson(
+                    topic, grade_level, st.session_state.language
+                )
+                
+                # 保存到历史
+                st.session_state.writing_history.append({
+                    "topic": topic,
+                    "grade": grade_level,
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "language": st.session_state.language
+                })
+                
+                # 显示教案
+                st.markdown("### 📜 写作教案" if st.session_state.language == 'cn' else "### 📜 Writing Lesson")
+                st.markdown(f'<div class="content-box">{lesson_content}</div>', unsafe_allow_html=True)
+                
+                # 操作按钮
+                col_btn1, col_btn2, col_btn3 = st.columns(3)
+                with col_btn1:
+                    st.download_button(
+                        "📥 下载教案" if st.session_state.language == 'cn' else "📥 Download",
+                        data=lesson_content,
+                        file_name=f"写作教案_{datetime.now().strftime('%Y%m%d')}.md",
+                        mime="text/markdown",
+                        use_container_width=True
+                    )
+                with col_btn2:
+                    if st.button("🔄 重新生成" if st.session_state.language == 'cn' else "🔄 Regenerate", 
+                                use_container_width=True):
+                        st.rerun()
+                with col_btn3:
+                    if st.button("💾 保存作品" if st.session_state.language == 'cn' else "💾 Save", 
+                                use_container_width=True):
+                        st.success("作品已保存！" if st.session_state.language == 'cn' else "Saved!")
+        else:
+            st.warning("请先选择或输入一个主题！" if st.session_state.language == 'cn' 
+                      else "Please select or enter a topic first!")
+
+# 词汇魔法页面
+elif st.session_state.page == 'vocabulary':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">📖 词汇魔法书</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">🔤</span>
+            <span class="icon-bounce">📚</span>
+            <span class="icon-bounce">🎯</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    subtitle = "探索丰富的英语词汇世界" if st.session_state.language == 'cn' else "Explore the wonderful world of English vocabulary"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 标签页
+    tab1, tab2, tab3 = st.tabs([
+        "🔍 词汇搜索" if st.session_state.language == 'cn' else "🔍 Search",
+        "📚 主题词汇" if st.session_state.language == 'cn' else "📚 Thematic",
+        "🎮 词汇游戏" if st.session_state.language == 'cn' else "🎮 Games"
+    ])
+    
+    with tab1:
+        st.markdown("### 🔍 智能词汇搜索" if st.session_state.language == 'cn' else "### 🔍 Smart Vocabulary Search")
+        
+        # 搜索框和筛选
+        col_search, col_filter1, col_filter2 = st.columns([2, 1, 1])
+        
+        with col_search:
+            search_keyword = st.text_input(
+                "输入关键词搜索" if st.session_state.language == 'cn' else "Enter keyword to search",
+                placeholder="英文或中文" if st.session_state.language == 'cn' else "English or Chinese"
+            )
+        
+        with col_filter1:
+            textbook_filter = st.selectbox(
+                "教材版本" if st.session_state.language == 'cn' else "Textbook",
+                ["全部", "人教版", "外研版", "牛津版", "课标词汇"]
+            )
+        
+        with col_filter2:
+            grade_filter = st.selectbox(
+                "年级" if st.session_state.language == 'cn' else "Grade",
+                ["全部", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级"]
+            )
+        
+        # 搜索按钮
+        if st.button("🔍 开始搜索" if st.session_state.language == 'cn' else "🔍 Search", 
+                    type="primary", use_container_width=True):
+            
+            # 模拟搜索结果
+            if search_keyword:
+                # 搜索逻辑
+                results = []
+                for textbook, words in EnglishContentLibrary.VOCABULARY_LIBRARY.items():
+                    if textbook_filter != "全部" and textbook_filter not in textbook:
+                        continue
+                    
+                    for word in words:
+                        if (grade_filter == "全部" or grade_filter in word['grade']):
+                            if (search_keyword.lower() in word['word'].lower() or 
+                                search_keyword in word['cn']):
+                                results.append({**word, 'textbook': textbook})
+                
+                if results:
+                    st.markdown(f"### 📊 找到 {len(results)} 个结果" if st.session_state.language == 'cn' 
+                               else f"### 📊 Found {len(results)} results")
+                    
+                    # 分页显示
+                    page_size = 10
+                    pages = [results[i:i + page_size] for i in range(0, len(results), page_size)]
+                    current_page = 1
+                    
+                    if pages:
+                        for word in pages[current_page-1]:
+                            # 随机分配卡片颜色
+                            card_colors = ['word-card-blue', 'word-card-green', 'word-card-orange']
+                            card_class = random.choice(card_colors)
+                            
+                            st.markdown(f"""
+                            <div class="word-card {card_class}">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div>
+                                        <h4 style="margin: 0; font-size: 1.2rem;">
+                                            <strong>{word['word']}</strong>
+                                            <span style="color: #666; margin-left: 10px;">{word['cn']}</span>
+                                        </h4>
+                                        <div style="margin-top: 10px; color: #555;">
+                                            <span class="status-badge badge-info">{word['textbook']}</span>
+                                            <span class="status-badge badge-success">Grade {word['grade']}</span>
+                                            <span class="status-badge badge-warning">{word['theme']}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 15px; color: #666; font-style: italic;">
+                                    📝 {word['sentence']}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                else:
+                    st.info("未找到相关词汇，请尝试其他关键词。" if st.session_state.language == 'cn' 
+                           else "No vocabulary found. Try different keywords.")
     
     with tab2:
-        st.markdown("#### 🎨 **界面主题设置**")
+        st.markdown("### 🎨 主题词汇包" if st.session_state.language == 'cn' else "### 🎨 Thematic Vocabulary")
         
-        theme = st.selectbox(
-            "学院主题色",
-            ["彩虹魔法", "海洋蓝", "森林绿", "日落橙", "星空紫", "糖果粉"]
-        )
+        themes = ["animals", "family", "school", "food", "colors", "weather", "sports", "feelings"]
+        theme_names_cn = ["动物", "家庭", "学校", "食物", "颜色", "天气", "运动", "情感"]
+        theme_names_en = ["Animals", "Family", "School", "Food", "Colors", "Weather", "Sports", "Feelings"]
         
-        font_size = st.select_slider(
-            "字体大小",
-            ["小", "中", "大", "特大"]
-        )
+        theme_cols = st.columns(4)
+        for idx, theme in enumerate(themes):
+            with theme_cols[idx % 4]:
+                name = theme_names_cn[idx] if st.session_state.language == 'cn' else theme_names_en[idx]
+                emoji = ["🐶", "👨‍👩‍👧‍👦", "🏫", "🍎", "🎨", "☀️", "⚽", "😊"][idx]
+                
+                if st.button(f"{emoji} {name}", use_container_width=True):
+                    # 显示主题词汇
+                    st.session_state.selected_theme = theme
+                    st.rerun()
         
-        animation = st.checkbox("启用动画效果", value=True)
-        sound_effects = st.checkbox("启用音效", value=False)
-        
-        if st.button("🎨 应用主题", type="primary", use_container_width=True):
-            st.success("🌈 主题设置已应用！")
+        # 显示选中的主题词汇
+        if 'selected_theme' in st.session_state:
+            theme_idx = themes.index(st.session_state.selected_theme)
+            theme_name = theme_names_en[theme_idx]
+            
+            st.markdown(f"### {['🐶', '👨‍👩‍👧‍👦', '🏫', '🍎', '🎨', '☀️', '⚽', '😊'][theme_idx]} {theme_name}")
+            
+            # 显示主题相关词汇
+            vocab_list = [
+                {"word": "dog", "cn": "狗", "sentence": "I have a cute dog."} if theme_name == "Animals" else
+                {"word": "father", "cn": "爸爸", "sentence": "My father is tall."} if theme_name == "Family" else
+                {"word": "classroom", "cn": "教室", "sentence": "Our classroom is clean."} if theme_name == "School" else
+                {"word": "apple", "cn": "苹果", "sentence": "I eat an apple every day."} if theme_name == "Food" else
+                {"word": "red", "cn": "红色", "sentence": "The apple is red."} if theme_name == "Colors" else
+                {"word": "sunny", "cn": "晴朗", "sentence": "Today is a sunny day."} if theme_name == "Weather" else
+                {"word": "football", "cn": "足球", "sentence": "I play football with friends."} if theme_name == "Sports" else
+                {"word": "happy", "cn": "开心", "sentence": "I feel happy today."}
+            ]
+            
+            for i in range(5):
+                word = {**vocab_list[0], "word": f"word_{i+1}", "cn": f"中文_{i+1}"}
+                st.markdown(f"""
+                <div class="word-card word-card-{'blue' if i%3==0 else 'green' if i%3==1 else 'orange'}">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>{word['word']}</strong>
+                            <span style="color: #666; margin-left: 10px;">{word['cn']}</span>
+                        </div>
+                        <button style="
+                            background: #4D96FF;
+                            color: white;
+                            border: none;
+                            padding: 5px 15px;
+                            border-radius: 10px;
+                            cursor: pointer;
+                        ">+ 学习</button>
+                    </div>
+                    <div style="margin-top: 10px; color: #666;">
+                        📝 {word['sentence']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+# 游戏乐园页面
+elif st.session_state.page == 'games':
+    st.markdown("""
+    <div class="title-container">
+        <h1 class="main-header">🎮 写作游戏乐园</h1>
+        <div class="decorative-icons">
+            <span class="icon-bounce">🎲</span>
+            <span class="icon-bounce">🏆</span>
+            <span class="icon-bounce">🎯</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with tab3:
-        st.markdown("#### 📖 **关于魔法写作学院**")
-        
+    subtitle = "在游戏中学习，在快乐中进步" if st.session_state.language == 'cn' else "Learn through games, progress with joy"
+    st.markdown(f'<div class="subtitle-text">{subtitle}</div>', unsafe_allow_html=True)
+    
+    # 游戏选择
+    st.markdown("## 🎯 选择游戏" if st.session_state.language == 'cn' else "## 🎯 Choose a Game")
+    
+    game_col1, game_col2, game_col3 = st.columns(3)
+    
+    with game_col1:
+        st.markdown(f"""
+        <div class="feature-card card-orange">
+            <div class="card-icon">🧩</div>
+            <h3 class="card-title">{
+                '单词拼图' if st.session_state.language == 'cn' else 'Word Puzzle'
+            }</h3>
+            <p class="card-desc">{
+                '将打乱的字母拼成正确的单词' if st.session_state.language == 'cn'
+                else 'Arrange letters to form correct words'
+            }</p>
+            {st.button("开始游戏", use_container_width=True, type="primary")}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with game_col2:
+        st.markdown(f"""
+        <div class="feature-card card-green">
+            <div class="card-icon">📝</div>
+            <h3 class="card-title">{
+                '句子接龙' if st.session_state.language == 'cn' else 'Sentence Chain'
+            }</h3>
+            <p class="card-desc">{
+                '用上一个单词的最后一个字母开始新单词' if st.session_state.language == 'cn'
+                else 'Start new word with last letter of previous word'
+            }</p>
+            {st.button("开始游戏", use_container_width=True, type="primary")}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with game_col3:
+        st.markdown(f"""
+        <div class="feature-card card-blue">
+            <div class="card-icon">🎲</div>
+            <h3 class="card-title">{
+                '故事骰子' if st.session_state.language == 'cn' else 'Story Dice'
+            }</h3>
+            <p class="card-desc">{
+                '掷骰子获得随机词语，创作有趣故事' if st.session_state.language == 'cn'
+                else 'Roll dice for random words to create stories'
+            }</p>
+            {st.button("开始游戏", use_container_width=True, type="primary")}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 游戏区域
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("## 🎮 单词拼图游戏" if st.session_state.language == 'cn' else "## 🎮 Word Puzzle Game")
+    
+    # 游戏界面
+    game_container = st.container()
+    with game_container:
         st.markdown("""
-        <div class="bubble-box">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <span style="font-size: 3em;">✏️📚🎨</span>
-                <h2>英思织网魔法写作学院</h2>
+        <div style="background: white; padding: 30px; border-radius: 20px; border: 3px solid #FF9A3D;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h3 style="color: #333;">单词: _ _ _ _ _</h3>
+                <p style="color: #666;">中文: 苹果</p>
+                <div style="margin: 20px 0; font-size: 2rem; letter-spacing: 10px;">
+                    P P L E A
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                    <button style="
+                        background: #FF9A3D;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                    ">A</button>
+                    <button style="
+                        background: #6BCF7F;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                    ">P</button>
+                    <button style="
+                        background: #4D96FF;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                    ">P</button>
+                    <button style="
+                        background: #FF6B9D;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                    ">L</button>
+                    <button style="
+                        background: #9D4DFF;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 10px;
+                        font-size: 1.1rem;
+                        cursor: pointer;
+                    ">E</button>
+                </div>
             </div>
-            
-            **学院使命：**
-            > 用AI魔法点亮每个孩子的写作天赋，让写作变得像游戏一样快乐！
-            
-            **版本信息：**
-            - 🏫 学院版本：魔法版 2.0.0
-            - 📅 建立时间：2024年1月
-            - ✨ 最新更新：2024年1月12日
-            
-            **技术支持：**
-            - 🧙‍♂️ 核心魔法：DeepSeek AI
-            - 🏗️ 学院建筑：Streamlit
-            - 🎨 界面设计：彩虹设计组
-            
-            **联系学院：**
-            - 📧 魔法邮箱：magic@yingsizhiwang.com
-            - 🌐 学院官网：www.yingsizhiwang.com
-            - 🐙 魔法仓库：github.com/yingsizhiwang
-            
-            **特别感谢：**
-            感谢所有小作家们的信任与支持！愿你们的写作之路充满欢乐与成长！
-            
-            ---
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <span class="fun-badge badge-success">🌈 魔法写作学院</span>
-                <span class="fun-badge badge-info">✨ 让写作更快乐</span>
-                <span class="fun-badge badge-purple">🎯 专业又有趣</span>
+            <div style="text-align: center; margin-top: 30px;">
+                <button style="
+                    background: linear-gradient(135deg, #4D96FF, #9D4DFF);
+                    color: white;
+                    border: none;
+                    padding: 15px 40px;
+                    border-radius: 15px;
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                    cursor: pointer;
+                ">🎯 检查答案</button>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-# ======================== 彩虹页脚 ========================
-st.markdown("<div class='rainbow-divider'></div>", unsafe_allow_html=True)
+# 页脚
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("---")
 
-footer_col1, footer_col2, footer_col3 = st.columns([3, 1, 1])
+footer_col1, footer_col2, footer_col3 = st.columns([2, 1, 1])
 
 with footer_col1:
-    st.markdown("""
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <span class="emoji-deco">🌈</span>
-        <span style="font-weight: bold; color: #4A5568;">英思织网魔法写作学院</span>
-        <span class="emoji-deco">✨</span>
-        <span style="color: #718096;">| 让每个孩子爱上写作！</span>
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.markdown(f"""
+    <div style="color: #666; text-align: center;">
+        <p style="margin: 0;">
+            <strong>🎨 英思织网 AI写作魔法学院</strong> | 
+            📧 contact@yingsizhiwang.com | 
+            ⏰ {current_time}
+        </p>
+        <p style="margin: 5px 0 0 0; font-size: 0.9em;">
+            © 2024 英思织网 版权所有 | 让每个孩子爱上写作！
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
 with footer_col2:
-    if st.session_state.api_key:
-        st.markdown('<span class="fun-badge badge-success">🔑 已激活</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="fun-badge badge-warning">🔑 未激活</span>', unsafe_allow_html=True)
+    if st.button("⬆️ 回到顶部", use_container_width=True):
+        st.rerun()
 
 with footer_col3:
-    st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
+    st.caption("🎯 参赛作品展示版")
